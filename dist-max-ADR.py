@@ -46,16 +46,9 @@ def get_last_price_date(ticker):
     # Exclude the most recent date if it is today
     data_before_today = data[data.index.date < today]
     
-    # Debug output
-    st.write(f"Adjusted close price for today (if available) for {ticker}: {today_price}")
-    st.write(f"Data before today for {ticker}:\n", data_before_today.head())
-    
     if today_price is not None:
         # Find the last date where the price was at or above today's price
         matching_dates = data_before_today[data_before_today['Adj Close'] >= today_price].index
-        
-        # Debug output
-        st.write(f"Matching dates for {ticker}:\n", matching_dates)
         
         if len(matching_dates) > 0:
             last_matched_date = matching_dates[-1]  # Get the last matching date
@@ -78,42 +71,3 @@ for ticker in tickers:
             st.write(f"No data found for {ticker}.")  # Show if no data is found
             continue
         
-        if last_date:
-            # Calculate days since the last matched date
-            days_since = (datetime.now().date() - last_date.date()).days
-            ticker_data.append({
-                'Ticker': ticker,
-                'Last Price (Today)': today_price,
-                'Last Date': last_date.to_pydatetime(),  # Convert to datetime.datetime
-                'Price at Last Date': price_at_last_date,
-                'Days Since': days_since
-            })
-        else:
-            ticker_data.append({
-                'Ticker': ticker,
-                'Last Price (Today)': today_price,
-                'Last Date': 'No match found',
-                'Price at Last Date': 'N/A',
-                'Days Since': None
-            })
-    except Exception as e:
-        st.error(f"Error processing data for {ticker}: {e}")
-
-# Convert data into DataFrame
-df = pd.DataFrame(ticker_data)
-
-# Filter out tickers without matching date
-df_valid = df.dropna(subset=['Days Since'])
-
-# Display DataFrame
-st.subheader("Stock Data with Last Matched Price or Higher Before Today")
-st.dataframe(df)
-
-# Plot the time lapsed in a bar plot
-if not df_valid.empty:
-    st.subheader("Time Lapsed Since Last Price Match or Higher (in days)")
-    fig = px.bar(df_valid, x='Days Since', y='Ticker', orientation='h', color='Days Since',
-                 color_continuous_scale='Viridis', labels={'Days Since': 'Days Since Last Matched Price'})
-    st.plotly_chart(fig)
-else:
-    st.write("No data available for plotting.")
