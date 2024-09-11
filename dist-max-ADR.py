@@ -22,6 +22,7 @@ def fetch_data(ticker):
             return pd.DataFrame()  # Return empty DataFrame if there's no data
         
         st.write(f"Data for {ticker} retrieved successfully.")
+        st.write(f"Data range for {ticker}: {stock_data.index.min()} to {stock_data.index.max()}")
         return stock_data
     except Exception as e:
         st.error(f"Error fetching data for {ticker}: {e}")
