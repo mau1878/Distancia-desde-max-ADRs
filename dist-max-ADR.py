@@ -2,7 +2,7 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.express as px
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # List of tickers
 tickers = ['BBAR', 'BMA', 'CEPU', 'CRESY', 'EDN', 'GGAL', 'IRS', 'LOMA', 'PAM', 'SUPV', 'TEO', 'TGS', 'YPF']
@@ -34,14 +34,20 @@ def get_last_price_date(ticker):
     data.sort_index(inplace=True)
     
     # Get the last adjusted close price (today's price)
-    last_price = data['Adj Close'].iloc[-1]  # Use iloc to avoid the future warning
+    last_price = data['Adj Close'].iloc[-1]
     
     # Exclude the most recent date (today) from the search
     data_before_today = data.iloc[:-1]
     
-    # Use a tolerance to find matching prices (to handle floating-point precision issues)
-    tolerance = 0.01
+    # Debug output
+    st.write(f"Last adjusted close price for {ticker}: {last_price}")
+    st.write(f"Data before today for {ticker}:\n", data_before_today.head())
+
+    # Find the last date where the price was at or above the last price
     matching_dates = data_before_today[data_before_today['Adj Close'] >= last_price].index
+    
+    # Debug output
+    st.write(f"Matching dates for {ticker}:\n", matching_dates)
 
     if len(matching_dates) > 0:
         last_matched_date = matching_dates[-1]  # Get the last matching date
