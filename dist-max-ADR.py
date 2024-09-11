@@ -14,12 +14,21 @@ st.write("Fetch the last adjusted close price of each ticker and find the most r
 @st.cache_data
 def fetch_data(ticker):
     # Fetch all available historical data for the ticker, explicitly starting from 1900 to ensure maximum range
-    stock_data = yf.download(ticker, start="1900-01-01", end=datetime.now().strftime('%Y-%m-%d'))
-    return stock_data
+    try:
+        stock_data = yf.download(ticker, start="1900-01-01", end=datetime.now().strftime('%Y-%m-%d'))
+        if stock_data.empty:
+            st.warning(f"No data found for {ticker}.")
+        return stock_data
+    except Exception as e:
+        st.error(f"Error fetching data for {ticker}: {e}")
+        return pd.DataFrame()  # Return empty DataFrame if there's an error
 
 def get_last_price_date(ticker):
     # Fetch data for the ticker
     data = fetch_data(ticker)
+    
+    if data.empty:
+        return None, None  # Return None if no data was retrieved
     
     # Ensure the data is sorted by date
     data.sort_index(inplace=True)
@@ -45,8 +54,13 @@ ticker_data = []
 
 # Loop through each ticker to get the last price and date
 for ticker in tickers:
+    st.write(f"Fetching data for: {ticker}")  # Diagnostic message
     try:
         last_price, last_date = get_last_price_date(ticker)
+        if last_price is None:
+            st.write(f"No data found for {ticker}.")  # Show if no data is found
+            continue
+        
         if last_date:
             # Calculate days since the last matched date
             days_since = (datetime.now() - last_date).days
@@ -64,7 +78,7 @@ for ticker in tickers:
                 'Days Since': None
             })
     except Exception as e:
-        st.write(f"Error fetching data for {ticker}: {e}")
+        st.error(f"Error processing data for {ticker}: {e}")
 
 # Convert data into DataFrame
 df = pd.DataFrame(ticker_data)
