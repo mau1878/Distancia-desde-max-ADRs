@@ -1,35 +1,33 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # List of tickers
 tickers = ['BBAR', 'BMA', 'CEPU', 'CRESY', 'EDN', 'GGAL', 'IRS', 'LOMA', 'PAM', 'SUPV', 'TEO', 'TGS', 'YPF']
 
-# Streamlit Title
-st.title("Stock Last Price Revisited (Historical Match Including Higher Prices)")
-st.write("Fetch the last adjusted close price of each ticker and find the most recent date before today when it closed at that price or a higher one, including historical data from previous years.")
+st.title("Stock Data with Latest Prices")
 
 @st.cache_data
-def fetch_data(ticker):
+def fetch_data(ticker, end_date):
     try:
         st.write(f"Fetching data for {ticker}...")
-        # Fetch data for a long range
-        stock_data = yf.download(ticker, start="1900-01-01", end=datetime.now().strftime('%Y-%m-%d'))
+        stock_data = yf.download(ticker, start="1900-01-01", end=end_date)
         
         if stock_data.empty:
             st.warning(f"No data found for {ticker}.")
-            return pd.DataFrame()  # Return empty DataFrame if there's no data
+            return pd.DataFrame()
         
         st.write(f"Data for {ticker} retrieved successfully.")
         st.write(f"Data range for {ticker}: {stock_data.index.min()} to {stock_data.index.max()}")
         return stock_data
     except Exception as e:
         st.error(f"Error fetching data for {ticker}: {e}")
-        return pd.DataFrame()  # Return empty DataFrame if there's an error
+        return pd.DataFrame()
 
 def get_last_price_date(ticker):
-    data = fetch_data(ticker)
+    end_date = datetime.now().strftime('%Y-%m-%d')
+    data = fetch_data(ticker, end_date)
     
     if data.empty:
         return None, None, None
@@ -42,8 +40,6 @@ def get_last_price_date(ticker):
     # Check if today's price is available
     data_today = data[data.index.date == today]
     
-    st.write(f"Data available for today: {data_today}")
-
     if not data_today.empty:
         today_price = data_today['Adj Close'].iloc[0]
     else:
@@ -55,7 +51,6 @@ def get_last_price_date(ticker):
     data_before_today = data[data.index.date < today]
     
     if today_price is not None:
-        # Filter dates where price is >= today's price
         matching_dates = data_before_today[data_before_today['Adj Close'] >= today_price].index
         
         st.write(f"Matching dates for {ticker}: {matching_dates}")
@@ -105,7 +100,6 @@ df = pd.DataFrame(ticker_data)
 st.subheader("Stock Data with Last Matched Price or Higher Before Today")
 st.dataframe(df)
 
-# Filter out tickers without valid 'Days Since'
 if 'Days Since' in df.columns:
     df_valid = df.dropna(subset=['Days Since'])
 else:
