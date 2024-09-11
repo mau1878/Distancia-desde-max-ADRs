@@ -13,15 +13,12 @@ st.title("Datos de Acciones con Precios Más Recientes")
 def fetch_data(ticker, end_date):
     try:
         # Se oculta la información de depuración para el usuario
-        # st.write(f"Fetching data for {ticker}...")
         stock_data = yf.download(ticker, start="1900-01-01", end=end_date)
         
         if stock_data.empty:
             st.warning(f"No se encontraron datos para {ticker}.")
             return pd.DataFrame()
         
-        # st.write(f"Data for {ticker} retrieved successfully.")
-        # st.write(f"Data range for {ticker}: {stock_data.index.min()} to {stock_data.index.max()}")
         return stock_data
     except Exception as e:
         st.error(f"Error al obtener datos para {ticker}: {e}")
@@ -49,9 +46,6 @@ def get_latest_price(ticker):
     latest_date = data_filtered.index.max().date()
     latest_price = data_filtered['Adj Close'].loc[data_filtered.index.date == latest_date].iloc[-1]
     
-    # st.write(f"Most recent date for {ticker}: {latest_date}")
-    # st.write(f"Latest price for {ticker}: {latest_price}")
-    
     # Encontrar el último precio disponible antes de la fecha más reciente
     data_before_latest = data[data.index.date < latest_date]
     
@@ -60,7 +54,6 @@ def get_latest_price(ticker):
         if not data_before_latest.empty:
             last_matched_date = data_before_latest.index[-1].date()
             price_at_last_matched_date = data_before_latest['Adj Close'].iloc[-1]
-            # st.write(f"Last matched date: {last_matched_date}, Price at last matched date: {price_at_last_matched_date}")
             return latest_price, last_matched_date, price_at_last_matched_date
         else:
             return latest_price, None, None
@@ -70,11 +63,9 @@ def get_latest_price(ticker):
 ticker_data = []
 
 for ticker in tickers:
-    st.write(f"Procesando ticker: {ticker}")
     try:
         latest_price, last_date, price_at_last_date = get_latest_price(ticker)
         if latest_price is None:
-            st.write(f"No se encontraron datos para {ticker}.")
             continue
         
         if last_date:
@@ -99,18 +90,25 @@ for ticker in tickers:
 
 df = pd.DataFrame(ticker_data)
 
-st.subheader("Datos de Acciones con Último Precio Coincidente o Superior Antes de la Fecha Más Reciente")
-st.dataframe(df)
+# Ordenar la tabla por 'Días Desde' en orden descendente
+df_sorted = df.sort_values(by='Días Desde', ascending=False)
 
-if 'Días Desde' in df.columns:
-    df_valid = df.dropna(subset=['Días Desde'])
+st.subheader("Datos de Acciones con Último Precio Coincidente o Superior Antes de la Fecha Más Reciente")
+st.dataframe(df_sorted)
+
+if 'Días Desde' in df_sorted.columns:
+    df_valid = df_sorted.dropna(subset=['Días Desde'])
 else:
-    df_valid = df
+    df_valid = df_sorted
 
 if not df_valid.empty:
     st.subheader("Tiempo Transcurrido Desde la Última Coincidencia de Precio o Superior (en días)")
+    # Ordenar las barras por longitud (en orden descendente)
     fig = px.bar(df_valid, x='Días Desde', y='Ticker', orientation='h', color='Días Desde',
-                 color_continuous_scale='Viridis', labels={'Días Desde': 'Días Desde Última Coincidencia de Precio'})
+                 color_continuous_scale='Viridis', labels={'Días Desde': 'Días Desde Última Coincidencia de Precio'},
+                 title="Días Desde la Última Coincidencia de Precio o Superior")
+    fig.update_layout(yaxis_title='Ticker', xaxis_title='Días Desde')
+    fig.update_traces(marker=dict(line=dict(width=1, color='rgba(0,0,0,0.2)')))
     st.plotly_chart(fig)
 else:
     st.write("No hay datos válidos disponibles para graficar.")
