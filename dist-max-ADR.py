@@ -43,21 +43,25 @@ def get_latest_price(ticker):
     if data_filtered.empty:
         return None, None, None
     
-    # Get the most recent date available
-    latest_date = data_filtered.index[-1].date()
-    latest_price = data_filtered['Adj Close'].iloc[-1]
+    # Find the most recent date available with a price greater than or equal to today's price
+    latest_date = data_filtered.index.max().date()
+    latest_price = data_filtered['Adj Close'].loc[data_filtered.index.date == latest_date].iloc[-1]
     
     st.write(f"Most recent date for {ticker}: {latest_date}")
     st.write(f"Latest price for {ticker}: {latest_price}")
     
-    # Data before latest_date
+    # Find the last available price before the most recent date
     data_before_latest = data[data.index.date < latest_date]
     
     if not data_before_latest.empty:
-        last_matched_date = data_before_latest.index[-1]
-        price_at_last_matched_date = data_before_latest.loc[last_matched_date, 'Adj Close']
-        st.write(f"Last matched date: {last_matched_date}, Price at last matched date: {price_at_last_matched_date}")
-        return latest_price, last_matched_date, price_at_last_matched_date
+        data_before_latest = data_before_latest[data_before_latest['Adj Close'] >= latest_price]
+        if not data_before_latest.empty:
+            last_matched_date = data_before_latest.index[-1].date()
+            price_at_last_matched_date = data_before_latest['Adj Close'].iloc[-1]
+            st.write(f"Last matched date: {last_matched_date}, Price at last matched date: {price_at_last_matched_date}")
+            return latest_price, last_matched_date, price_at_last_matched_date
+        else:
+            return latest_price, None, None
     else:
         return latest_price, None, None
 
