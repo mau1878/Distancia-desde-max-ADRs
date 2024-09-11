@@ -37,6 +37,9 @@ def get_last_price_date(ticker):
     data.sort_index(inplace=True)
     
     today = datetime.now().date()
+    st.write(f"Today's date: {today}")
+    
+    # Check if today's price is available
     data_today = data[data.index.date == today]
     
     if not data_today.empty:
@@ -44,14 +47,21 @@ def get_last_price_date(ticker):
     else:
         today_price = None
     
+    st.write(f"Today's price for {ticker}: {today_price}")
+    
+    # Data before today
     data_before_today = data[data.index.date < today]
     
     if today_price is not None:
+        # Filter dates where price is >= today's price
         matching_dates = data_before_today[data_before_today['Adj Close'] >= today_price].index
+        
+        st.write(f"Matching dates for {ticker}: {matching_dates}")
         
         if len(matching_dates) > 0:
             last_matched_date = matching_dates[-1]
             price_at_last_matched_date = data.loc[last_matched_date, 'Adj Close']
+            st.write(f"Last matched date: {last_matched_date}, Price at last matched date: {price_at_last_matched_date}")
             return today_price, last_matched_date, price_at_last_matched_date
         else:
             return today_price, None, None
