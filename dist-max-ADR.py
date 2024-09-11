@@ -1,7 +1,6 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import plotly.express as px
 from datetime import datetime
 
 # List of tickers
@@ -42,6 +41,8 @@ def get_last_price_date(ticker):
     # Check if today's price is available
     data_today = data[data.index.date == today]
     
+    st.write(f"Data available for today: {data_today}")
+
     if not data_today.empty:
         today_price = data_today['Adj Close'].iloc[0]
     else:
