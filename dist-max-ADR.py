@@ -71,3 +71,45 @@ for ticker in tickers:
             st.write(f"No data found for {ticker}.")  # Show if no data is found
             continue
         
+        if last_date:
+            # Calculate days since the last matched date
+            days_since = (datetime.now().date() - last_date.date()).days
+            ticker_data.append({
+                'Ticker': ticker,
+                'Last Price (Today)': today_price,
+                'Last Date': last_date.to_pydatetime(),  # Convert to datetime.datetime
+                'Price at Last Date': price_at_last_date,
+                'Days Since': days_since
+            })
+        else:
+            ticker_data.append({
+                'Ticker': ticker,
+                'Last Price (Today)': today_price,
+                'Last Date': 'No match found',
+                'Price at Last Date': 'N/A',
+                'Days Since': None
+            })
+    except Exception as e:
+        st.error(f"Error processing data for {ticker}: {e}")
+
+# Convert data into DataFrame
+df = pd.DataFrame(ticker_data)
+
+# Check if 'Days Since' column exists before dropping NaN values
+if 'Days Since' in df.columns:
+    df_valid = df.dropna(subset=['Days Since'])
+else:
+    df_valid = df  # If 'Days Since' column does not exist, consider all data valid
+
+# Display DataFrame
+st.subheader("Stock Data with Last Matched Price or Higher Before Today")
+st.dataframe(df)
+
+# Plot the time lapsed in a bar plot
+if not df_valid.empty:
+    st.subheader("Time Lapsed Since Last Price Match or Higher (in days)")
+    fig = px.bar(df_valid, x='Days Since', y='Ticker', orientation='h', color='Days Since',
+                 color_continuous_scale='Viridis', labels={'Days Since': 'Days Since Last Matched Price'})
+    st.plotly_chart(fig)
+else:
+    st.write("No data available for plotting.")
