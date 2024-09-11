@@ -95,6 +95,9 @@ df_sorted = df.sort_values(by='Días Desde', ascending=False)
 st.subheader("Datos de Acciones con Último Precio Coincidente o Superior Antes de la Fecha Más Reciente")
 st.dataframe(df_sorted)
 
+# Agregar un texto de marca de agua en la tabla
+st.markdown("**MTaurus - X: MTaurus_ok**", unsafe_allow_html=True)
+
 if 'Días Desde' in df_sorted.columns:
     df_valid = df_sorted.dropna(subset=['Días Desde'])
 else:
@@ -106,8 +109,20 @@ if not df_valid.empty:
     fig = px.bar(df_valid, x='Días Desde', y='Ticker', orientation='h', color='Días Desde',
                  color_continuous_scale='Viridis', labels={'Días Desde': 'Días Desde Última Coincidencia de Precio'},
                  title="Días Desde la Última Coincidencia de Precio o Superior")
+    
+    # Agregar marca de agua al gráfico
     fig.update_layout(yaxis_title='Ticker', xaxis_title='Días Desde', yaxis_categoryorder='total ascending')
     fig.update_traces(marker=dict(line=dict(width=1, color='rgba(0,0,0,0.2)')))
+    
+    fig.add_annotation(
+        text="MTaurus - X: MTaurus_ok",
+        xref="paper", yref="paper",
+        x=0.5, y=-0.1,
+        showarrow=False,
+        font=dict(size=10, color="rgba(0,0,0,0.5)"),
+        align="center"
+    )
+    
     st.plotly_chart(fig)
 else:
     st.write("No hay datos válidos disponibles para graficar.")
