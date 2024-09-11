@@ -13,7 +13,7 @@ st.write("Fetch the last adjusted close price of each ticker and find the most r
 
 @st.cache_data
 def fetch_data(ticker):
-    # Fetch all available historical data for the ticker, explicitly starting from 1900 to ensure maximum range
+    # Fetch all available historical data for the ticker
     try:
         stock_data = yf.download(ticker, start="1900-01-01", end=datetime.now().strftime('%Y-%m-%d'))
         if stock_data.empty:
@@ -42,8 +42,8 @@ def get_last_price_date(ticker):
     # Debug output
     st.write(f"Last adjusted close price for {ticker}: {last_price}")
     st.write(f"Data before today for {ticker}:\n", data_before_today.head())
-
-    # Find the last date where the price was at or above the last price
+    
+    # Ensure correct date handling
     matching_dates = data_before_today[data_before_today['Adj Close'] >= last_price].index
     
     # Debug output
