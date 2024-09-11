@@ -2,6 +2,7 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
+import plotly.express as px
 
 # List of tickers
 tickers = ['BBAR', 'BMA', 'CEPU', 'CRESY', 'EDN', 'GGAL', 'IRS', 'LOMA', 'PAM', 'SUPV', 'TEO', 'TGS', 'YPF']
@@ -76,11 +77,11 @@ for ticker in tickers:
             continue
         
         if last_date:
-            days_since = (datetime.now().date() - last_date.date()).days
+            days_since = (datetime.now().date() - last_date).days
             ticker_data.append({
                 'Ticker': ticker,
                 'Latest Price': latest_price,
-                'Last Date': last_date.to_pydatetime(),
+                'Last Date': last_date,
                 'Price at Last Date': price_at_last_date,
                 'Days Since': days_since
             })
@@ -111,4 +112,4 @@ if not df_valid.empty:
                  color_continuous_scale='Viridis', labels={'Days Since': 'Days Since Last Matched Price'})
     st.plotly_chart(fig)
 else:
-    st.write("No data available for plotting.")
+    st.write("No valid data available for plotting.")
