@@ -2,20 +2,20 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.express as px
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # List of tickers
 tickers = ['BBAR', 'BMA', 'CEPU', 'CRESY', 'EDN', 'GGAL', 'IRS', 'LOMA', 'PAM', 'SUPV', 'TEO', 'TGS', 'YPF']
 
 # Streamlit Title
 st.title("Stock Last Price Revisited (Historical Match Including Higher Prices)")
-st.write("Fetch the last adjusted close price of each ticker and find the most recent date before today when it closed at that price or a higher one, including historical data from previous years.")
+st.write("Fetch the last adjusted close price of each ticker and find the most recent date before 'today+1' when it closed at that price or a higher one, including historical data from previous years.")
 
 @st.cache_data
 def fetch_data(ticker):
     # Fetch all available historical data for the ticker
     try:
-        stock_data = yf.download(ticker, start="1900-01-01", end=datetime.now().strftime('%Y-%m-%d'))
+        stock_data = yf.download(ticker, start="1900-01-01", end=(datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d'))
         if stock_data.empty:
             st.warning(f"No data found for {ticker}.")
         return stock_data
@@ -36,21 +36,24 @@ def get_last_price_date(ticker):
     # Get the last adjusted close price (latest price)
     last_price = data['Adj Close'].iloc[-1]
     
+    # Set the target date for comparison to 'today+1'
+    target_date = datetime.now() + timedelta(days=1)
+    
     # Get the most recent date (today or the last available date)
     most_recent_date = data.index[-1]
     
-    # Exclude the most recent date from the search if it is today
-    if most_recent_date.date() == datetime.now().date():
-        data_before_today = data.iloc[:-1]
+    # Exclude the most recent date from the search if it is 'today+1'
+    if most_recent_date.date() == target_date.date():
+        data_before_target = data.iloc[:-1]
     else:
-        data_before_today = data
+        data_before_target = data
 
     # Debug output
     st.write(f"Last adjusted close price for {ticker}: {last_price}")
-    st.write(f"Data before today for {ticker}:\n", data_before_today.head())
+    st.write(f"Data before target date for {ticker}:\n", data_before_target.head())
     
     # Find the last date where the price was at or above the last price
-    matching_dates = data_before_today[data_before_today['Adj Close'] >= last_price].index
+    matching_dates = data_before_target[data_before_target['Adj Close'] >= last_price].index
     
     # Debug output
     st.write(f"Matching dates for {ticker}:\n", matching_dates)
@@ -99,7 +102,7 @@ df = pd.DataFrame(ticker_data)
 df_valid = df.dropna(subset=['Days Since'])
 
 # Display DataFrame
-st.subheader("Stock Data with Last Matched Price or Higher Before Today")
+st.subheader("Stock Data with Last Matched Price or Higher Before 'Today+1'")
 st.dataframe(df)
 
 # Plot the time lapsed in a bar plot
