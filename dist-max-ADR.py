@@ -25,8 +25,11 @@ def fetch_data(ticker, end_date):
         st.error(f"Error fetching data for {ticker}: {e}")
         return pd.DataFrame()
 
-def get_last_price_date(ticker):
-    end_date = datetime.now().strftime('%Y-%m-%d')
+def get_latest_price(ticker):
+    today = datetime.now().date()
+    tomorrow = today + timedelta(days=1)
+    
+    end_date = tomorrow.strftime('%Y-%m-%d')
     data = fetch_data(ticker, end_date)
     
     if data.empty:
@@ -34,44 +37,37 @@ def get_last_price_date(ticker):
     
     data.sort_index(inplace=True)
     
-    today = datetime.now().date()
-    st.write(f"Today's date: {today}")
+    # Filter data to include entries up to tomorrow
+    data_filtered = data[data.index.date <= tomorrow]
     
-    # Check if today's price is available
-    data_today = data[data.index.date == today]
-    
-    if not data_today.empty:
-        today_price = data_today['Adj Close'].iloc[0]
-    else:
-        today_price = None
-    
-    st.write(f"Today's price for {ticker}: {today_price}")
-    
-    # Data before today
-    data_before_today = data[data.index.date < today]
-    
-    if today_price is not None:
-        matching_dates = data_before_today[data_before_today['Adj Close'] >= today_price].index
-        
-        st.write(f"Matching dates for {ticker}: {matching_dates}")
-        
-        if len(matching_dates) > 0:
-            last_matched_date = matching_dates[-1]
-            price_at_last_matched_date = data.loc[last_matched_date, 'Adj Close']
-            st.write(f"Last matched date: {last_matched_date}, Price at last matched date: {price_at_last_matched_date}")
-            return today_price, last_matched_date, price_at_last_matched_date
-        else:
-            return today_price, None, None
-    else:
+    if data_filtered.empty:
         return None, None, None
+    
+    # Get the most recent date available
+    latest_date = data_filtered.index[-1].date()
+    latest_price = data_filtered['Adj Close'].iloc[-1]
+    
+    st.write(f"Most recent date for {ticker}: {latest_date}")
+    st.write(f"Latest price for {ticker}: {latest_price}")
+    
+    # Data before latest_date
+    data_before_latest = data[data.index.date < latest_date]
+    
+    if not data_before_latest.empty:
+        last_matched_date = data_before_latest.index[-1]
+        price_at_last_matched_date = data_before_latest.loc[last_matched_date, 'Adj Close']
+        st.write(f"Last matched date: {last_matched_date}, Price at last matched date: {price_at_last_matched_date}")
+        return latest_price, last_matched_date, price_at_last_matched_date
+    else:
+        return latest_price, None, None
 
 ticker_data = []
 
 for ticker in tickers:
     st.write(f"Processing ticker: {ticker}")
     try:
-        today_price, last_date, price_at_last_date = get_last_price_date(ticker)
-        if today_price is None:
+        latest_price, last_date, price_at_last_date = get_latest_price(ticker)
+        if latest_price is None:
             st.write(f"No data found for {ticker}.")
             continue
         
@@ -79,7 +75,7 @@ for ticker in tickers:
             days_since = (datetime.now().date() - last_date.date()).days
             ticker_data.append({
                 'Ticker': ticker,
-                'Last Price (Today)': today_price,
+                'Latest Price': latest_price,
                 'Last Date': last_date.to_pydatetime(),
                 'Price at Last Date': price_at_last_date,
                 'Days Since': days_since
@@ -87,7 +83,7 @@ for ticker in tickers:
         else:
             ticker_data.append({
                 'Ticker': ticker,
-                'Last Price (Today)': today_price,
+                'Latest Price': latest_price,
                 'Last Date': 'No match found',
                 'Price at Last Date': 'N/A',
                 'Days Since': None
@@ -97,7 +93,7 @@ for ticker in tickers:
 
 df = pd.DataFrame(ticker_data)
 
-st.subheader("Stock Data with Last Matched Price or Higher Before Today")
+st.subheader("Stock Data with Last Matched Price or Higher Before Latest Date")
 st.dataframe(df)
 
 if 'Days Since' in df.columns:
