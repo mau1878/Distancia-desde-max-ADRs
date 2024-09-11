@@ -2,7 +2,7 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.express as px
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # List of tickers
 tickers = ['BBAR', 'BMA', 'CEPU', 'CRESY', 'EDN', 'GGAL', 'IRS', 'LOMA', 'PAM', 'SUPV', 'TEO', 'TGS', 'YPF']
@@ -21,11 +21,11 @@ def get_last_price_date(ticker):
     # Fetch data for the ticker
     data = fetch_data(ticker)
     
-    # Ensure the data is sorted by date (just in case)
+    # Ensure the data is sorted by date
     data.sort_index(inplace=True)
     
     # Get the last adjusted close price (today's price)
-    last_price = data['Adj Close'][-1]
+    last_price = data['Adj Close'].iloc[-1]  # Use iloc to avoid the future warning
     
     # Exclude the most recent date (today) from the search
     data_before_today = data.iloc[:-1]
@@ -52,7 +52,7 @@ for ticker in tickers:
             ticker_data.append({
                 'Ticker': ticker,
                 'Last Price': last_price,
-                'Last Date': last_date.date(),
+                'Last Date': last_date.to_pydatetime(),  # Convert to datetime.datetime
                 'Days Since': days_since
             })
         else:
