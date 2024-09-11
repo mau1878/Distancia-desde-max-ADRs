@@ -15,6 +15,7 @@ st.write("Fetch the last adjusted close price of each ticker and find the most r
 def fetch_data(ticker):
     # Fetch all available historical data for the ticker
     try:
+        st.write(f"Fetching data for {ticker}...")
         stock_data = yf.download(ticker, start="1900-01-01", end=datetime.now().strftime('%Y-%m-%d'))
         if stock_data.empty:
             st.warning(f"No data found for {ticker}.")
@@ -64,7 +65,7 @@ ticker_data = []
 
 # Loop through each ticker to get the last price, date, and price at the matching date
 for ticker in tickers:
-    st.write(f"Fetching data for: {ticker}")  # Diagnostic message
+    st.write(f"Processing ticker: {ticker}")  # Diagnostic message
     try:
         today_price, last_date, price_at_last_date = get_last_price_date(ticker)
         if today_price is None:
@@ -95,15 +96,15 @@ for ticker in tickers:
 # Convert data into DataFrame
 df = pd.DataFrame(ticker_data)
 
+# Display DataFrame
+st.subheader("Stock Data with Last Matched Price or Higher Before Today")
+st.dataframe(df)
+
 # Check if 'Days Since' column exists before dropping NaN values
 if 'Days Since' in df.columns:
     df_valid = df.dropna(subset=['Days Since'])
 else:
     df_valid = df  # If 'Days Since' column does not exist, consider all data valid
-
-# Display DataFrame
-st.subheader("Stock Data with Last Matched Price or Higher Before Today")
-st.dataframe(df)
 
 # Plot the time lapsed in a bar plot
 if not df_valid.empty:
