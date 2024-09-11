@@ -28,7 +28,7 @@ def get_last_price_date(ticker):
     data = fetch_data(ticker)
     
     if data.empty:
-        return None, None  # Return None if no data was retrieved
+        return None, None, None  # Return None if no data was retrieved
     
     # Ensure the data is sorted by date
     data.sort_index(inplace=True)
@@ -51,18 +51,19 @@ def get_last_price_date(ticker):
 
     if len(matching_dates) > 0:
         last_matched_date = matching_dates[-1]  # Get the last matching date
-        return last_price, last_matched_date
+        price_at_last_matched_date = data['Adj Close'].loc[last_matched_date]  # Price at that date
+        return last_price, last_matched_date, price_at_last_matched_date
     else:
-        return last_price, None
+        return last_price, None, None
 
 # Prepare to store results
 ticker_data = []
 
-# Loop through each ticker to get the last price and date
+# Loop through each ticker to get the last price, date, and price at the matching date
 for ticker in tickers:
     st.write(f"Fetching data for: {ticker}")  # Diagnostic message
     try:
-        last_price, last_date = get_last_price_date(ticker)
+        last_price, last_date, price_at_last_date = get_last_price_date(ticker)
         if last_price is None:
             st.write(f"No data found for {ticker}.")  # Show if no data is found
             continue
@@ -74,6 +75,7 @@ for ticker in tickers:
                 'Ticker': ticker,
                 'Last Price': last_price,
                 'Last Date': last_date.to_pydatetime(),  # Convert to datetime.datetime
+                'Price at Last Date': price_at_last_date,
                 'Days Since': days_since
             })
         else:
@@ -81,6 +83,7 @@ for ticker in tickers:
                 'Ticker': ticker,
                 'Last Price': last_price,
                 'Last Date': 'No match found',
+                'Price at Last Date': 'N/A',
                 'Days Since': None
             })
     except Exception as e:
