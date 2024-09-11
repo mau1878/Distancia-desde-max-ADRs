@@ -8,19 +8,21 @@ from datetime import datetime
 tickers = ['BBAR', 'BMA', 'CEPU', 'CRESY', 'EDN', 'GGAL', 'IRS', 'LOMA', 'PAM', 'SUPV', 'TEO', 'TGS', 'YPF']
 
 # Streamlit Title
-st.title("Stock Last Price Revisited (Historical Match Excluding Today)")
-st.write("Fetch the last adjusted close price of each ticker and find the most recent date before today when it closed at the same price.")
+st.title("Stock Last Price Revisited (Historical Match Including Older Data)")
+st.write("Fetch the last adjusted close price of each ticker and find the most recent date before today when it closed at the same price, including historical data from previous years.")
 
-@st.cache
+@st.cache_data
 def fetch_data(ticker):
-    # Fetch all available historical data for the ticker
+    # Fetch all available historical data for the ticker (no time limitation)
     stock_data = yf.download(ticker, period="max")
     return stock_data
 
-@st.cache
 def get_last_price_date(ticker):
     # Fetch data for the ticker
     data = fetch_data(ticker)
+    
+    # Ensure the data is sorted by date (just in case)
+    data.sort_index(inplace=True)
     
     # Get the last adjusted close price (today's price)
     last_price = data['Adj Close'][-1]
@@ -28,7 +30,7 @@ def get_last_price_date(ticker):
     # Exclude the most recent date (today) from the search
     data_before_today = data.iloc[:-1]
     
-    # Find the most recent date the stock closed at today's price, excluding today
+    # Find the most recent date before today when the stock closed at today's price
     matching_dates = data_before_today[data_before_today['Adj Close'] == last_price].index
     
     if len(matching_dates) > 0:
