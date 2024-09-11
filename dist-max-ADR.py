@@ -43,7 +43,7 @@ def get_last_price_date(ticker):
     st.write(f"Last adjusted close price for {ticker}: {last_price}")
     st.write(f"Data before today for {ticker}:\n", data_before_today.head())
     
-    # Ensure correct date handling
+    # Find the last date where the price was at or above the last price
     matching_dates = data_before_today[data_before_today['Adj Close'] >= last_price].index
     
     # Debug output
