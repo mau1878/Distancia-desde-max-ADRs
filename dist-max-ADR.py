@@ -8,8 +8,8 @@ from datetime import datetime
 tickers = ['BBAR', 'BMA', 'CEPU', 'CRESY', 'EDN', 'GGAL', 'IRS', 'LOMA', 'PAM', 'SUPV', 'TEO', 'TGS', 'YPF']
 
 # Streamlit Title
-st.title("Stock Last Price Revisited (All Available Data)")
-st.write("Fetch the last adjusted close price of each ticker and the last date it closed at that price.")
+st.title("Stock Last Price Revisited (Historical Match Excluding Today)")
+st.write("Fetch the last adjusted close price of each ticker and find the most recent date before today when it closed at the same price.")
 
 @st.cache
 def fetch_data(ticker):
@@ -22,11 +22,14 @@ def get_last_price_date(ticker):
     # Fetch data for the ticker
     data = fetch_data(ticker)
     
-    # Get the last adjusted close price
+    # Get the last adjusted close price (today's price)
     last_price = data['Adj Close'][-1]
     
-    # Find the last date the stock closed at that price
-    matching_dates = data[data['Adj Close'] == last_price].index
+    # Exclude the most recent date (today) from the search
+    data_before_today = data.iloc[:-1]
+    
+    # Find the most recent date the stock closed at today's price, excluding today
+    matching_dates = data_before_today[data_before_today['Adj Close'] == last_price].index
     
     if len(matching_dates) > 0:
         last_matched_date = matching_dates[-1]
@@ -67,7 +70,7 @@ df = pd.DataFrame(ticker_data)
 df_valid = df.dropna(subset=['Days Since'])
 
 # Display DataFrame
-st.subheader("Stock Data with Last Matched Price")
+st.subheader("Stock Data with Last Matched Price Before Today")
 st.dataframe(df)
 
 # Plot the time lapsed in a bar plot
