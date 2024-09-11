@@ -51,7 +51,7 @@ def get_last_price_date(ticker):
         
         if len(matching_dates) > 0:
             last_matched_date = matching_dates[-1]
-            price_at_last_matched_date = data['Adj Close'].loc[last_matched_date]
+            price_at_last_matched_date = data.loc[last_matched_date, 'Adj Close']
             return today_price, last_matched_date, price_at_last_matched_date
         else:
             return today_price, None, None
@@ -93,6 +93,7 @@ df = pd.DataFrame(ticker_data)
 st.subheader("Stock Data with Last Matched Price or Higher Before Today")
 st.dataframe(df)
 
+# Filter out tickers without valid 'Days Since'
 if 'Days Since' in df.columns:
     df_valid = df.dropna(subset=['Days Since'])
 else:
