@@ -33,12 +33,18 @@ def get_last_price_date(ticker):
     # Ensure the data is sorted by date
     data.sort_index(inplace=True)
     
-    # Get the last adjusted close price (today's price)
+    # Get the last adjusted close price (latest price)
     last_price = data['Adj Close'].iloc[-1]
     
-    # Exclude the most recent date (today) from the search
-    data_before_today = data.iloc[:-1]
+    # Get the most recent date (today or the last available date)
+    most_recent_date = data.index[-1]
     
+    # Exclude the most recent date from the search if it is today
+    if most_recent_date.date() == datetime.now().date():
+        data_before_today = data.iloc[:-1]
+    else:
+        data_before_today = data
+
     # Debug output
     st.write(f"Last adjusted close price for {ticker}: {last_price}")
     st.write(f"Data before today for {ticker}:\n", data_before_today.head())
