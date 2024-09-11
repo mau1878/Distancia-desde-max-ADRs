@@ -2,14 +2,14 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.express as px
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # List of tickers
 tickers = ['BBAR', 'BMA', 'CEPU', 'CRESY', 'EDN', 'GGAL', 'IRS', 'LOMA', 'PAM', 'SUPV', 'TEO', 'TGS', 'YPF']
 
 # Streamlit Title
-st.title("Stock Last Price Revisited (Historical Match Including Older Data)")
-st.write("Fetch the last adjusted close price of each ticker and find the most recent date before today when it closed at that price or a higher price.")
+st.title("Stock Last Price Revisited (Historical Match Including Higher Prices)")
+st.write("Fetch the last adjusted close price of each ticker and find the most recent date before today when it closed at that price or a higher one, including historical data from previous years.")
 
 @st.cache_data
 def fetch_data(ticker):
@@ -39,7 +39,8 @@ def get_last_price_date(ticker):
     # Exclude the most recent date (today) from the search
     data_before_today = data.iloc[:-1]
     
-    # Find the most recent date when the price was greater than or equal to the last adjusted close price
+    # Use a tolerance to find matching prices (to handle floating-point precision issues)
+    tolerance = 0.01
     matching_dates = data_before_today[data_before_today['Adj Close'] >= last_price].index
 
     if len(matching_dates) > 0:
@@ -86,12 +87,12 @@ df = pd.DataFrame(ticker_data)
 df_valid = df.dropna(subset=['Days Since'])
 
 # Display DataFrame
-st.subheader("Stock Data with Last Matched Price Before Today")
+st.subheader("Stock Data with Last Matched Price or Higher Before Today")
 st.dataframe(df)
 
 # Plot the time lapsed in a bar plot
 if not df_valid.empty:
-    st.subheader("Time Lapsed Since Last Price Match (in days)")
+    st.subheader("Time Lapsed Since Last Price Match or Higher (in days)")
     fig = px.bar(df_valid, x='Days Since', y='Ticker', orientation='h', color='Days Since',
                  color_continuous_scale='Viridis', labels={'Days Since': 'Days Since Last Matched Price'})
     st.plotly_chart(fig)
