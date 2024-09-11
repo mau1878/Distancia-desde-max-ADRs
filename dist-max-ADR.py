@@ -12,7 +12,6 @@ st.title("Datos de Acciones con Precios Más Recientes")
 @st.cache_data
 def fetch_data(ticker, end_date):
     try:
-        # Se oculta la información de depuración para el usuario
         stock_data = yf.download(ticker, start="1900-01-01", end=end_date)
         
         if stock_data.empty:
@@ -107,7 +106,7 @@ if not df_valid.empty:
     fig = px.bar(df_valid, x='Días Desde', y='Ticker', orientation='h', color='Días Desde',
                  color_continuous_scale='Viridis', labels={'Días Desde': 'Días Desde Última Coincidencia de Precio'},
                  title="Días Desde la Última Coincidencia de Precio o Superior")
-    fig.update_layout(yaxis_title='Ticker', xaxis_title='Días Desde')
+    fig.update_layout(yaxis_title='Ticker', xaxis_title='Días Desde', yaxis_categoryorder='total ascending')
     fig.update_traces(marker=dict(line=dict(width=1, color='rgba(0,0,0,0.2)')))
     st.plotly_chart(fig)
 else:
