@@ -67,6 +67,11 @@ for ticker in tickers:
         if latest_price is None:
             continue
         
+        # Round prices to 2 decimal places
+        latest_price = round(latest_price, 2)
+        if price_at_last_date is not None:
+            price_at_last_date = round(price_at_last_date, 2)
+        
         if last_date:
             days_since = (datetime.now().date() - last_date).days
             ticker_data.append({
