@@ -1,30 +1,14 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import numpy as np  # Import numpy for np.nan
+import numpy as np
 from datetime import datetime, timedelta
-import plotly.express as px
 
-# Lista de tickers
-tickers = ['BBAR', 'BMA', 'CEPU', 'CRESY', 'EDN', 'GGAL', 'IRS',
-           'LOMA', 'PAM', 'SUPV', 'TEO', 'TGS', 'YPF']
-
-st.title("Datos de Acciones con Precios Más Recientes")
-
-@st.cache_data
+# Function to fetch data from yfinance
 def fetch_data(ticker, end_date):
-    try:
-        stock_data = yf.download(ticker, start="1900-01-01", end=end_date)
+    return yf.download(ticker, end=end_date)
 
-        if stock_data.empty:
-            st.warning(f"No se encontraron datos para {ticker}.")
-            return pd.DataFrame()
-
-        return stock_data
-    except Exception as e:
-        st.error(f"Error al obtener datos para {ticker}: {e}")
-        return pd.DataFrame()
-
+# Function to get the latest price and the previous date where the price was equal or higher than the latest
 def get_latest_price(ticker):
     today = datetime.now().date()
     tomorrow = today + timedelta(days=1)
@@ -66,125 +50,49 @@ def get_latest_price(ticker):
     if not data_before_latest.empty:
         # Encontrar la fecha más reciente previa donde el precio ajustado fue >= al más reciente
         condition = data_before_latest['Adj Close'] >= latest_price
-        last_matched_index = data_before_latest[condition].index.max()
+        if condition.any():
+            last_matched_index = data_before_latest[condition].index.max()
 
-        if pd.isna(last_matched_index):
-            st.warning(f"{ticker} - No hay fechas previas con precio mayor o igual al último precio.")
+            last_matched_date = last_matched_index.date()
+            price_at_last_matched_date = data_before_latest['Adj Close'].loc[last_matched_index]
+            price_at_last_matched_date = float(price_at_last_matched_date)  # Ensure it's a float
+
+            st.info(f"{ticker} - Precio igual o mayor en Fecha Previa: {price_at_last_matched_date} en {last_matched_date}")
+            return latest_price, last_matched_date, price_at_last_matched_date
+        else:
+            st.warning(f"{ticker} - No hay fechas previas con precio igual o mayor al último precio.")
             return latest_price, pd.NaT, np.nan
-
-        last_matched_date = last_matched_index.date()
-        price_at_last_matched_date = data_before_latest['Adj Close'].loc[last_matched_index]
-        price_at_last_matched_date = float(price_at_last_matched_date)  # Ensure it's a float
-
-        st.info(f"{ticker} - Precio igual o mayor en Fecha Previa: {price_at_last_matched_date} en {last_matched_date}")
-        return latest_price, last_matched_date, price_at_last_matched_date
     else:
         st.warning(f"{ticker} - No hay datos antes de {latest_date}.")
         return latest_price, pd.NaT, np.nan
 
-ticker_data = []
+# Main function
+def main():
+    st.title("Análisis de Precios de Acciones")
 
-for ticker in tickers:
-    try:
-        latest_price, last_date, price_at_last_date = get_latest_price(ticker)
-        if latest_price is None:
-            st.warning(f"No hay datos de precio para {ticker}.")
-            continue
+    # Input tickers
+    tickers = st.text_input("Ingresar tickers separados por comas", "BBAR,BMA,CEPU")
 
-        # Round prices to 2 decimal places if they are not NaN
-        latest_price = round(latest_price, 2) if not pd.isna(latest_price) else np.nan
-        price_at_last_date = round(price_at_last_date, 2) if not pd.isna(price_at_last_date) else np.nan
+    if tickers:
+        ticker_list = [ticker.strip().upper() for ticker in tickers.split(",")]
 
-        if pd.notna(last_date):
-            days_since = (datetime.now().date() - last_date).days
-            ticker_data.append({
-                'Ticker': ticker,
-                'Último Precio': latest_price,
-                'Última Fecha': last_date,
-                'Precio en Última Fecha': price_at_last_date,
-                'Días Desde': days_since
-            })
-        else:
-            ticker_data.append({
-                'Ticker': ticker,
-                'Último Precio': latest_price,
-                'Última Fecha': pd.NaT,
-                'Precio en Última Fecha': np.nan,
-                'Días Desde': np.nan
-            })
-    except Exception as e:
-        st.error(f"Error al procesar datos para {ticker}: {e}")
+        # Initialize empty DataFrame for results
+        results = []
 
-# Crear DataFrame
-df = pd.DataFrame(ticker_data)
+        # Loop over tickers
+        for ticker in ticker_list:
+            latest_price, last_matched_date, price_at_last_matched_date = get_latest_price(ticker)
 
-# Define data types explícitamente
-df['Ticker'] = df['Ticker'].astype(str)
-df['Último Precio'] = pd.to_numeric(df['Último Precio'], errors='coerce')
-df['Última Fecha'] = pd.to_datetime(df['Última Fecha'], errors='coerce')
-df['Precio en Última Fecha'] = pd.to_numeric(df['Precio en Última Fecha'], errors='coerce')
-df['Días Desde'] = pd.to_numeric(df['Días Desde'], errors='coerce')
+            # Append results to the DataFrame
+            if latest_price is not None:
+                results.append([ticker, latest_price, last_matched_date, price_at_last_matched_date])
 
-# Ordenar la tabla por 'Días Desde' en orden descendente, manejando NaN
-df_sorted = df.sort_values(by='Días Desde', ascending=False, na_position='last')
+        # Convert results to DataFrame
+        results_df = pd.DataFrame(results, columns=["Ticker", "Último Precio", "Última Fecha", "Precio en Última Fecha"])
 
-# Reset the index and drop the old index
-df_sorted = df_sorted.reset_index(drop=True)
+        # Display results in a table
+        st.write(results_df)
 
-# Verificar tipos de datos
-st.write("Tipos de datos del DataFrame:")
-st.write(df_sorted.dtypes)
-
-# Verificar columnas del DataFrame
-st.write("Columnas del DataFrame:")
-st.write(df_sorted.columns)
-
-# Verificar si hay columnas adicionales (como 'Unnamed: 0')
-if 'Unnamed: 0' in df_sorted.columns:
-    df_sorted = df_sorted.drop(columns=['Unnamed: 0'])
-    st.warning("Se ha eliminado la columna 'Unnamed: 0'.")
-
-# Mostrar la tabla en Streamlit
-st.subheader("Datos de Acciones con Último Precio Coincidente o Superior Antes de la Fecha Más Reciente")
-st.dataframe(df_sorted)
-
-# Agregar un texto de marca de agua en la tabla
-st.markdown("**MTaurus - X: MTaurus_ok**", unsafe_allow_html=True)
-
-# Filtrar datos válidos para graficar
-df_valid = df_sorted.dropna(subset=['Días Desde'])
-
-if not df_valid.empty:
-    st.subheader("Tiempo Transcurrido Desde la Última Coincidencia de Precio o Superior (en días)")
-    # Ordenar las barras por longitud (en orden descendente)
-    fig = px.bar(
-        df_valid, 
-        x='Días Desde', 
-        y='Ticker', 
-        orientation='h', 
-        color='Días Desde',
-        color_continuous_scale='Viridis', 
-        labels={'Días Desde': 'Días Desde Última Coincidencia de Precio'},
-        title="Días Desde la Última Coincidencia de Precio o Superior"
-    )
-    
-    # Agregar marca de agua al gráfico
-    fig.update_layout(
-        yaxis_title='Ticker', 
-        xaxis_title='Días Desde', 
-        yaxis_categoryorder='total ascending'
-    )
-    fig.update_traces(marker=dict(line=dict(width=1, color='rgba(0,0,0,0.2)')))
-    
-    fig.add_annotation(
-        text="MTaurus - X: MTaurus_ok",
-        xref="paper", yref="paper",
-        x=0.5, y=-0.1,
-        showarrow=False,
-        font=dict(size=10, color="rgba(0,0,0,0.5)"),
-        align="center"
-    )
-    
-    st.plotly_chart(fig)
-else:
-    st.write("No hay datos válidos disponibles para graficar.")
+# Run the main function
+if __name__ == "__main__":
+    main()
