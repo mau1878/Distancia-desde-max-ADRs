@@ -57,6 +57,7 @@ def get_latest_price(ticker):
         return latest_price, pd.NaT, np.nan
 
     # Seleccionar la fecha anterior con precio mayor o igual al precio más reciente
+    # Evitar el error 'truth value of a series is ambiguous' usando .loc[]
     matched_data = data_before_latest.loc[data_before_latest['Adj Close'] >= latest_price]
 
     if matched_data.empty:
