@@ -43,11 +43,13 @@ def get_latest_price(ticker):
 
     # Última fecha con precio disponible
     latest_date = data_filtered.index.max().date()
-    latest_price = data_filtered['Adj Close'].loc[data_filtered.index.date == latest_date].iloc[-1]
+    latest_price = data_filtered['Adj Close'].loc[data_filtered.index.date == latest_date]
 
-    if pd.isna(latest_price):
+    if latest_price.empty:
         st.warning(f"No se encontró 'Adj Close' para {ticker} en {latest_date}.")
         return None, pd.NaT, np.nan
+
+    latest_price = latest_price.iloc[-1]  # Obtener el último valor de 'Adj Close'
 
     # Datos anteriores a la última fecha
     data_before_latest = data_filtered[data_filtered.index.date < latest_date]
@@ -56,9 +58,8 @@ def get_latest_price(ticker):
         st.warning(f"{ticker} - No hay fechas previas con precios disponibles.")
         return latest_price, pd.NaT, np.nan
 
-    # Seleccionar la fecha anterior con precio mayor o igual al precio más reciente
-    # Evitar el error 'truth value of a series is ambiguous' usando .loc[]
-    matched_data = data_before_latest.loc[data_before_latest['Adj Close'] >= latest_price]
+    # Comparar de manera segura utilizando boolean indexing
+    matched_data = data_before_latest[data_before_latest['Adj Close'] >= latest_price]
 
     if matched_data.empty:
         st.warning(f"{ticker} - No hay fechas previas con precio mayor o igual al último precio.")
