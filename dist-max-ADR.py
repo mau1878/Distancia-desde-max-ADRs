@@ -33,6 +33,7 @@ def get_latest_price(ticker):
   data = fetch_data(ticker, end_date)
   
   if data.empty:
+      st.warning(f"No hay datos para {ticker}.")
       return None, pd.NaT, np.nan
   
   data.sort_index(inplace=True)
@@ -41,6 +42,7 @@ def get_latest_price(ticker):
   data_filtered = data[data.index.date <= tomorrow]
   
   if data_filtered.empty:
+      st.warning(f"No hay datos filtrados para {ticker}.")
       return None, pd.NaT, np.nan
   
   # Encontrar la fecha más reciente disponible
@@ -49,9 +51,11 @@ def get_latest_price(ticker):
   
   if latest_price_series.empty:
       latest_price = None
+      st.warning(f"No se encontró 'Adj Close' para {ticker} en {latest_date}.")
   else:
       latest_price = latest_price_series.iloc[-1]
       latest_price = float(latest_price)  # Ensure it's a float
+      st.info(f"{ticker} - Último Precio: {latest_price} en {latest_date}")
   
   if latest_price is None:
       return None, pd.NaT, np.nan
@@ -66,10 +70,13 @@ def get_latest_price(ticker):
           last_matched_date = last_matched_index.date()
           price_at_last_matched_date = matching_data['Adj Close'].iloc[-1]
           price_at_last_matched_date = float(price_at_last_matched_date)  # Ensure it's a float
+          st.info(f"{ticker} - Precio en Última Fecha: {price_at_last_matched_date} en {last_matched_date}")
           return latest_price, last_matched_date, price_at_last_matched_date
       else:
+          st.warning(f"{ticker} - No se encontró un precio anterior >= {latest_price}.")
           return latest_price, pd.NaT, np.nan
   else:
+      st.warning(f"{ticker} - No hay datos antes de {latest_date}.")
       return latest_price, pd.NaT, np.nan
 
 ticker_data = []
@@ -108,7 +115,7 @@ for ticker in tickers:
 # Crear DataFrame
 df = pd.DataFrame(ticker_data)
 
-# Define data types explicitly
+# Define data types explícitamente
 df['Ticker'] = df['Ticker'].astype(str)
 df['Último Precio'] = pd.to_numeric(df['Último Precio'], errors='coerce')
 df['Última Fecha'] = pd.to_datetime(df['Última Fecha'], errors='coerce')
@@ -118,10 +125,14 @@ df['Días Desde'] = pd.to_numeric(df['Días Desde'], errors='coerce')
 # Ordenar la tabla por 'Días Desde' en orden descendente, manejando NaN
 df_sorted = df.sort_values(by='Días Desde', ascending=False, na_position='last')
 
+# Reset the index to eliminate it from serialization
+df_sorted.reset_index(drop=True, inplace=True)
+
 # Opcional: Verificar tipos de datos
 st.write("Tipos de datos del DataFrame:")
 st.write(df_sorted.dtypes)
 
+# Mostrar la tabla en Streamlit
 st.subheader("Datos de Acciones con Último Precio Coincidente o Superior Antes de la Fecha Más Reciente")
 st.dataframe(df_sorted)
 
