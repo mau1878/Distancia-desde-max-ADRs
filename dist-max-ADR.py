@@ -52,16 +52,21 @@ def get_latest_price(ticker):
     # Datos anteriores a la última fecha
     data_before_latest = data_filtered[data_filtered.index.date < latest_date]
 
-    # Seleccionar la fecha anterior con precio mayor o igual al precio más reciente
-    condition = data_before_latest['Adj Close'] >= latest_price
-    last_matched_index = data_before_latest[condition].index.max()
+    if data_before_latest.empty:
+        st.warning(f"{ticker} - No hay fechas previas con precios disponibles.")
+        return latest_price, pd.NaT, np.nan
 
-    if pd.isna(last_matched_index):
+    # Seleccionar la fecha anterior con precio mayor o igual al precio más reciente
+    matched_data = data_before_latest.loc[data_before_latest['Adj Close'] >= latest_price]
+
+    if matched_data.empty:
         st.warning(f"{ticker} - No hay fechas previas con precio mayor o igual al último precio.")
         return latest_price, pd.NaT, np.nan
 
+    # Seleccionar la última fecha que cumple la condición
+    last_matched_index = matched_data.index.max()
     last_matched_date = last_matched_index.date()
-    price_at_last_matched_date = data_before_latest['Adj Close'].loc[last_matched_index]
+    price_at_last_matched_date = matched_data['Adj Close'].loc[last_matched_index]
 
     st.info(f"{ticker} - Último Precio: {latest_price} ({latest_date}), Precio anterior igual o mayor: {price_at_last_matched_date} ({last_matched_date})")
 
@@ -92,34 +97,37 @@ for ticker in tickers:
         st.error(f"Error al procesar datos para {ticker}: {e}")
 
 # Crear DataFrame
-df = pd.DataFrame(ticker_data)
+if ticker_data:  # Check if ticker_data is not empty
+    df = pd.DataFrame(ticker_data)
 
-# Convertir columnas a tipos adecuados
-df['Ticker'] = df['Ticker'].astype(str)
-df['Último Precio'] = pd.to_numeric(df['Último Precio'], errors='coerce')
-df['Última Fecha'] = pd.to_datetime(df['Última Fecha'], errors='coerce')
-df['Precio en Última Fecha'] = pd.to_numeric(df['Precio en Última Fecha'], errors='coerce')
-df['Días Desde'] = pd.to_numeric(df['Días Desde'], errors='coerce')
+    # Convertir columnas a tipos adecuados
+    df['Ticker'] = df['Ticker'].astype(str)
+    df['Último Precio'] = pd.to_numeric(df['Último Precio'], errors='coerce')
+    df['Última Fecha'] = pd.to_datetime(df['Última Fecha'], errors='coerce')
+    df['Precio en Última Fecha'] = pd.to_numeric(df['Precio en Última Fecha'], errors='coerce')
+    df['Días Desde'] = pd.to_numeric(df['Días Desde'], errors='coerce')
 
-# Ordenar la tabla
-df_sorted = df.sort_values(by='Días Desde', ascending=False, na_position='last').reset_index(drop=True)
+    # Ordenar la tabla
+    df_sorted = df.sort_values(by='Días Desde', ascending=False, na_position='last').reset_index(drop=True)
 
-# Mostrar la tabla
-st.subheader("Datos de Acciones con Último Precio Coincidente o Superior Antes de la Fecha Más Reciente")
-st.dataframe(df_sorted)
+    # Mostrar la tabla
+    st.subheader("Datos de Acciones con Último Precio Coincidente o Superior Antes de la Fecha Más Reciente")
+    st.dataframe(df_sorted)
 
-# Gráfico interactivo
-if not df_sorted.empty:
-    st.subheader("Tiempo Transcurrido Desde la Última Coincidencia de Precio o Superior (en días)")
-    fig = px.bar(
-        df_sorted, 
-        x='Días Desde', 
-        y='Ticker', 
-        orientation='h', 
-        color='Días Desde',
-        color_continuous_scale='Viridis',
-        title="Días Desde la Última Coincidencia de Precio o Superior"
-    )
-    st.plotly_chart(fig)
+    # Gráfico interactivo
+    if not df_sorted.empty:
+        st.subheader("Tiempo Transcurrido Desde la Última Coincidencia de Precio o Superior (en días)")
+        fig = px.bar(
+            df_sorted, 
+            x='Días Desde', 
+            y='Ticker', 
+            orientation='h', 
+            color='Días Desde',
+            color_continuous_scale='Viridis',
+            title="Días Desde la Última Coincidencia de Precio o Superior"
+        )
+        st.plotly_chart(fig)
+    else:
+        st.write("No hay datos válidos disponibles para graficar.")
 else:
-    st.write("No hay datos válidos disponibles para graficar.")
+    st.write("No se encontraron datos válidos para procesar.")
