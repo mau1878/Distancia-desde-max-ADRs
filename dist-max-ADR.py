@@ -54,7 +54,7 @@ def get_latest_price(ticker):
       st.warning(f"No se encontró 'Adj Close' para {ticker} en {latest_date}.")
   else:
       latest_price = latest_price_series.iloc[-1]
-      latest_price = float(latest_price)  # Ensure it's a float
+      latest_price = float(latest_price)  # Asegura que sea un float
       st.info(f"{ticker} - Último Precio: {latest_price} en {latest_date}")
   
   if latest_price is None:
@@ -64,13 +64,18 @@ def get_latest_price(ticker):
   data_before_latest = data[data.index.date < latest_date]
   
   if not data_before_latest.empty:
-      # Encontrar la fecha más reciente previa
-      last_matched_index = data_before_latest.index.max()
-      last_matched_date = last_matched_index.date()
-      price_at_last_matched_date = data_before_latest['Adj Close'].loc[last_matched_index]
-      price_at_last_matched_date = float(price_at_last_matched_date)  # Ensure it's a float
-      st.info(f"{ticker} - Precio en Última Fecha: {price_at_last_matched_date} en {last_matched_date}")
-      return latest_price, last_matched_date, price_at_last_matched_date
+      # Encontrar todas las fechas previas donde Adj Close >= latest_price
+      matching_data = data_before_latest[data_before_latest['Adj Close'] >= latest_price]
+      if not matching_data.empty:
+          last_matched_index = matching_data.index.max()
+          last_matched_date = last_matched_index.date()
+          price_at_last_matched_date = matching_data['Adj Close'].loc[last_matched_index]
+          price_at_last_matched_date = float(price_at_last_matched_date)  # Asegura que sea un float
+          st.info(f"{ticker} - Precio en Última Fecha: {price_at_last_matched_date} en {last_matched_date}")
+          return latest_price, last_matched_date, price_at_last_matched_date
+      else:
+          st.warning(f"{ticker} - No se encontró un precio anterior >= {latest_price}.")
+          return latest_price, pd.NaT, np.nan
   else:
       st.warning(f"{ticker} - No hay datos antes de {latest_date}.")
       return latest_price, pd.NaT, np.nan
@@ -84,7 +89,7 @@ for ticker in tickers:
           st.warning(f"No hay datos de precio para {ticker}.")
           continue
       
-      # Round prices to 2 decimal places if they are not NaN
+      # Redondear precios a 2 decimales si no son NaN
       latest_price = round(latest_price, 2) if not pd.isna(latest_price) else np.nan
       price_at_last_date = round(price_at_last_date, 2) if not pd.isna(price_at_last_date) else np.nan
       
