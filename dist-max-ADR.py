@@ -72,6 +72,10 @@ def get_latest_price(ticker: str) -> tuple:
       most_recent_date = data.index.max()
       current_price = float(data.loc[most_recent_date, 'Adj Close'])
       
+      # Debug print
+      st.write(f"\nProcessing {ticker}:")
+      st.write(f"Current price ({most_recent_date.date()}): {current_price}")
+      
       # Get all data except the most recent day
       historical_data = data[data.index < most_recent_date]
       
@@ -82,8 +86,15 @@ def get_latest_price(ticker: str) -> tuple:
           if not price_matches.empty:
               last_match_date = price_matches.index[-1].date()
               price_at_last_match = float(price_matches['Adj Close'].iloc[-1])
-              days_since = (most_recent_date.date() - last_match_date).days
+              
+              # Debug print
+              st.write(f"Found match: {last_match_date} with price {price_at_last_match}")
+              
               return current_price, last_match_date, price_at_last_match
+          else:
+              st.write("No historical prices >= current price found")
+      else:
+          st.write("No historical data available")
       
       return current_price, None, None
       
@@ -92,6 +103,7 @@ def get_latest_price(ticker: str) -> tuple:
       return None, None, None
 
 # Main loop
+st.write("Starting data processing...")
 progress_bar = st.progress(0)
 ticker_data = []
 
@@ -107,11 +119,27 @@ for i, ticker in enumerate(tickers):
           'Días Desde': (datetime.now().date() - last_date).days if last_date else None
       }
       ticker_data.append(data_dict)
+      
+      # Debug print
+      st.write(f"Added to DataFrame: {data_dict}")
   
   # Update progress bar
   progress_bar.progress((i + 1) / len(tickers))
-# Create DataFrame and display
+
+st.write("\nCreating final DataFrame...")
 df = pd.DataFrame(ticker_data)
+st.write("Final DataFrame created.")
+
+# Display the raw data before sorting
+st.write("\nRaw data before sorting:")
+st.write(df)
+
+if 'Días Desde' in df.columns:
+  df_sorted = df.sort_values(by='Días Desde', ascending=False)
+  st.write("\nSorted data:")
+  st.write(df_sorted)
+else:
+  st.write("\nNo 'Días Desde' column found in DataFrame")
 
 # Debug information
 st.write("Debug Info:")
