@@ -53,13 +53,13 @@ def fetch_data(ticker: str, end_date: str) -> pd.DataFrame:
 
 def get_latest_price(ticker: str) -> tuple:
   """
-  Get the latest price and related information for a ticker
+  Get the latest price and find the most recent date when the price was equal or higher
   
   Parameters:
       ticker (str): Stock ticker symbol
       
   Returns:
-      tuple: (latest_price, last_date, price_at_last_date)
+      tuple: (latest_price, last_matched_date, price_at_last_matched_date)
   """
   try:
       today = datetime.now().date()
@@ -74,31 +74,25 @@ def get_latest_price(ticker: str) -> tuple:
       # Convert index to datetime if not already
       data.index = pd.to_datetime(data.index)
       
-      # Get the latest date's data
-      latest_date = data.index.max()
-      latest_row = data.loc[latest_date]
-      latest_price = latest_row['Adj Close']
+      # Get today's data (or most recent if today is not available)
+      current_price = data['Adj Close'].iloc[-1]
       
-      # Get data before the latest date
-      mask = (data.index < latest_date)
-      previous_data = data.loc[mask]
+      # Look for the most recent date before today where price was >= current price
+      historical_data = data[:-1]  # Exclude the most recent day
+      price_matches = historical_data[historical_data['Adj Close'] >= current_price]
       
-      if not previous_data.empty:
-          # Find dates where price was greater than or equal to latest price
-          price_matches = previous_data[previous_data['Adj Close'] >= latest_price]
-          
-          if not price_matches.empty:
-              last_match_date = price_matches.index[-1].date()
-              price_at_last_match = price_matches['Adj Close'].iloc[-1]
-              return float(latest_price), last_match_date, float(price_at_last_match)
+      if not price_matches.empty:
+          last_match_date = price_matches.index[-1].date()
+          price_at_last_match = price_matches['Adj Close'].iloc[-1]
+          return float(current_price), last_match_date, float(price_at_last_match)
       
-      return float(latest_price), None, None
+      return float(current_price), None, None
       
   except Exception as e:
       st.error(f"Error processing {ticker}: {str(e)}")
       return None, None, None
 
-# Update the main loop as well
+# Update the main loop to handle the results properly
 progress_bar = st.progress(0)
 ticker_data = []
 
@@ -109,8 +103,8 @@ for i, ticker in enumerate(tickers):
       data_dict = {
           'Ticker': ticker,
           'Último Precio': round(latest_price, 2),
-          'Última Fecha': last_date if last_date else 'No se encontró coincidencia',
-          'Precio en Última Fecha': round(price_at_last_date, 2) if price_at_last_date else 'N/A',
+          'Última Fecha': last_date if last_date else 'Sin coincidencia previa',
+          'Precio en Última Fecha': round(price_at_last_date, 2) if price_at_last_date is not None else None,
           'Días Desde': (datetime.now().date() - last_date).days if last_date else None
       }
       ticker_data.append(data_dict)
