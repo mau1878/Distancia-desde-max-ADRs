@@ -1,151 +1,102 @@
-import streamlit as st
-import yfinance as yf
-import pandas as pd
-from datetime import datetime, timedelta
-import plotly.express as px
+# Install required libraries (if not already installed)
+# !pip install requests pandas yfinance streamlit
 
-# Lista de tickers
+import requests
+import pandas as pd
+import yfinance as yf
+from datetime import datetime
+import streamlit as st
+
+# Define the headers for the stockanalysis request
+headers = {
+    'accept': '*/*',
+    'accept-language': 'de-DE,de;q=0.9,es-AR;q=0.8,es;q=0.7,en-DE;q=0.6,en;q=0.5,en-US;q=0.4',
+    'dnt': '1',
+    'origin': 'https://stockanalysis.com',
+    'priority': 'u=1, i',
+    'referer': 'https://stockanalysis.com/',
+    'sec-ch-ua': '"Chromium";v="130", "Google Chrome";v="130", "Not?A_Brand";v="99"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+    'sec-fetch-dest': 'empty',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-site': 'same-site',
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+}
+
+# List of tickers
 tickers = ['BBAR', 'BMA', 'CEPU', 'CRESY', 'EDN', 'GGAL', 'IRS', 'LOMA', 'PAM', 'SUPV', 'TEO', 'TGS', 'YPF']
 
-st.title("Datos de Acciones con Precios Más Recientes")
+# Data structure to store results
+results = []
 
-@st.cache_data
-def fetch_data(ticker, end_date):
-  try:
-      stock_data = yf.download(ticker, start="1900-01-01", end=end_date)
-      
-      if stock_data.empty:
-          st.warning(f"No se encontraron datos para {ticker}.")
-          return pd.DataFrame()
-      
-      return stock_data
-  except Exception as e:
-      st.error(f"Error al obtener datos para {ticker}: {e}")
-      return pd.DataFrame()
+# Function to find the most recent date in StockAnalysis where the adjusted close is >= YFinance price
+def get_closest_stockanalysis_data(ticker, latest_price):
+    params = {'range': '10Y', 'period': 'Daily'}
+    response = requests.get(f'https://api.stockanalysis.com/api/symbol/s/{ticker}/history', params=params, headers=headers)
+    
+    if response.status_code == 200:
+        history_data = response.json().get('data', {}).get('data', [])
+        if history_data and isinstance(history_data, list):
+            df_history = pd.DataFrame(history_data)
+            # Ensure the 'date' column is in datetime format
+            df_history['date'] = pd.to_datetime(df_history['t'])
+            df_history['adjClose'] = pd.to_numeric(df_history['a'], errors='coerce')
+            
+            # Filter to find rows where adjClose >= latest_price
+            filtered_df = df_history[df_history['a'] >= latest_price]
+            if not filtered_df.empty:
+                # Get the most recent date and its price
+                closest_row = filtered_df.iloc[-1]
+                closest_date = closest_row['date']
+                previous_price = closest_row['a']
+                return closest_date, previous_price
+    return None, None
 
-def get_latest_price(ticker: str) -> tuple:
-  """Gets the latest price and finds the most recent date when the price was equal or higher."""
-  try:
-      today = datetime.now().date()
-      end_date = today.strftime('%Y-%m-%d')
-      data = fetch_data(ticker, end_date)
+# Iterate over each ticker
+for ticker in tickers:
+    # Fetch the latest price from YFinance
+    stock = yf.Ticker(ticker)
+    stock_data = stock.history(period="1d")  # Get the latest day's price
+    if not stock_data.empty:
+        latest_price = stock_data['Close'].values[0]
+        latest_date = stock_data.index[0].date()
+        
+        # Find the most recent date in StockAnalysis where adjClose >= latest_price
+        closest_date, previous_price = get_closest_stockanalysis_data(ticker, latest_price)
+        
+        if closest_date:
+            # Calculate the number of days between the two dates
+            days_difference = (latest_date - closest_date.date()).days
+            
+            # Append data to results
+            results.append({
+                'Ticker': ticker,
+                'Latest Price (YFinance)': f"{latest_price:.2f}",
+                'YFinance Date': latest_date,
+                'Previous Price (StockAnalysis)': f"{previous_price:.2f}",
+                'StockAnalysis Date': closest_date.date(),
+                'Days Difference': days_difference
+            })
+        else:
+            results.append({
+                'Ticker': ticker,
+                'Latest Price (YFinance)': f"{latest_price:.2f}",
+                'YFinance Date': latest_date,
+                'Previous Price (StockAnalysis)': 'N/A',
+                'StockAnalysis Date': 'N/A',
+                'Days Difference': 'N/A'
+            })
 
-      if data.empty:
-          return None, None, None
+# Convert the results into a DataFrame
+df_results = pd.DataFrame(results)
 
-      data.index = pd.to_datetime(data.index)
-
-      # Check if today's date is in the index *before* accessing it
-      if today not in data.index:
-          return None, None, None  # Return immediately if today's data isn't there
-
-      today_price = data.loc[today, 'Adj Close']
-
-      # Handle potential Series vs. single value
-      if isinstance(today_price, pd.Series) and not today_price.empty:
-          today_price = float(today_price.iloc[-1])
-      elif isinstance(today_price, (int, float)):  # or numpy.number
-          today_price = float(today_price)
-      else:
-          return None, None, None  # Handle cases where today_price is neither
-
-      historical_data = data[data.index.date < today]
-
-      if not historical_data.empty:
-          price_matches = historical_data[historical_data['Adj Close'] >= today_price]
-          if not price_matches.empty:
-              last_match_date = price_matches.index[-1].date()
-              price_at_last_match = float(price_matches['Adj Close'].iloc[-1])
-              return today_price, last_match_date, price_at_last_match
-
-      return today_price, None, None
-
-  except Exception as e:
-      st.error(f"Error processing {ticker}: {str(e)}")
-      return None, None, None
-
-# Add progress bar
-progress_bar = st.progress(0)
-ticker_data = []
-
-for i, ticker in enumerate(tickers):
-  latest_price, last_date, price_at_last_date = get_latest_price(ticker)
-  
-  if latest_price is not None:
-      data_dict = {
-          'Ticker': ticker,
-          'Último Precio': round(latest_price, 2),
-          'Última Fecha': last_date if last_date else 'Sin coincidencia previa',
-          'Precio en Última Fecha': round(price_at_last_date, 2) if price_at_last_date is not None else None,
-          'Días Desde': (datetime.now().date() - last_date).days if last_date else None
-      }
-      ticker_data.append(data_dict)
-  
-  # Update progress bar
-  progress_bar.progress((i + 1) / len(tickers))
-
-# Create DataFrame and display
-df = pd.DataFrame(ticker_data)
-
-if df.empty:
-  st.warning("No se encontraron datos para ningún ticker.")
-else:
-  # Sort the DataFrame if possible
-  if 'Días Desde' in df.columns and df['Días Desde'].notna().any():
-      df_sorted = df.sort_values(by='Días Desde', ascending=False)
-  else:
-      df_sorted = df
-
-  st.subheader("Datos de Acciones con Último Precio Coincidente o Superior Antes de la Fecha Más Reciente")
-  st.dataframe(df_sorted)
-
-  # Add watermark with CSS styling
-  st.markdown(
-      """
-      <div style='text-align: center; color: rgba(0,0,0,0.5); padding: 10px;'>
-          <strong>MTaurus - X: MTaurus_ok</strong>
-      </div>
-      """, 
-      unsafe_allow_html=True
-  )
-
-  # Create visualization only if we have valid data
-  if 'Días Desde' in df_sorted.columns:
-      df_valid = df_sorted.dropna(subset=['Días Desde'])
-      if not df_valid.empty:
-          st.subheader("Tiempo Transcurrido Desde la Última Coincidencia de Precio o Superior (en días)")
-          
-          fig = px.bar(
-              df_valid,
-              x='Días Desde',
-              y='Ticker',
-              orientation='h',
-              color='Días Desde',
-              color_continuous_scale='Viridis',
-              labels={'Días Desde': 'Días Desde Última Coincidencia de Precio'},
-              title="Días Desde la Última Coincidencia de Precio o Superior"
-          )
-          
-          fig.update_layout(
-              yaxis_title='Ticker',
-              xaxis_title='Días Desde',
-              yaxis_categoryorder='total ascending',
-              margin=dict(t=50, l=0, r=0, b=50)
-          )
-          
-          fig.update_traces(marker=dict(line=dict(width=1, color='rgba(0,0,0,0.2)')))
-          
-          fig.add_annotation(
-              text="MTaurus - X: MTaurus_ok",
-              xref="paper",
-              yref="paper",
-              x=0.5,
-              y=-0.15,
-              showarrow=False,
-              font=dict(size=10, color="rgba(0,0,0,0.5)"),
-              align="center"
-          )
-          
-          st.plotly_chart(fig, use_container_width=True)
-      else:
-          st.warning("No hay datos válidos disponibles para graficar.")
+# Stylish display using Streamlit
+st.title("Stock Price Comparison (YFinance vs StockAnalysis)")
+st.table(df_results.style.set_properties(**{
+    'background-color': '#f4f4f4',
+    'border-color': 'black',
+    'color': 'black',
+    'font-size': '12px',
+    'text-align': 'center',
+}).set_caption('Comparison of latest stock prices from YFinance and the closest available prices from StockAnalysis.'))
