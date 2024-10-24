@@ -61,64 +61,59 @@ def get_latest_price(ticker: str) -> tuple:
   Returns:
       tuple: (latest_price, last_date, price_at_last_date)
   """
-  today = datetime.now().date()
-  tomorrow = today + timedelta(days=1)
-  
-  end_date = tomorrow.strftime('%Y-%m-%d')
-  data = fetch_data(ticker, end_date)
-  
-  if data.empty:
+  try:
+      today = datetime.now().date()
+      tomorrow = today + timedelta(days=1)
+      
+      end_date = tomorrow.strftime('%Y-%m-%d')
+      data = fetch_data(ticker, end_date)
+      
+      if data.empty:
+          return None, None, None
+      
+      # Convert index to datetime if not already
+      data.index = pd.to_datetime(data.index)
+      
+      # Get the latest date's data
+      latest_date = data.index.max()
+      latest_row = data.loc[latest_date]
+      latest_price = latest_row['Adj Close']
+      
+      # Get data before the latest date
+      mask = (data.index < latest_date)
+      previous_data = data.loc[mask]
+      
+      if not previous_data.empty:
+          # Find dates where price was greater than or equal to latest price
+          price_matches = previous_data[previous_data['Adj Close'] >= latest_price]
+          
+          if not price_matches.empty:
+              last_match_date = price_matches.index[-1].date()
+              price_at_last_match = price_matches['Adj Close'].iloc[-1]
+              return float(latest_price), last_match_date, float(price_at_last_match)
+      
+      return float(latest_price), None, None
+      
+  except Exception as e:
+      st.error(f"Error processing {ticker}: {str(e)}")
       return None, None, None
-  
-  data.sort_index(inplace=True)
-  # Convert to datetime.date for comparison
-  data_filtered = data[data.index.map(lambda x: x.date() <= tomorrow)]
-  
-  if data_filtered.empty:
-      return None, None, None
-  
-  latest_date = data_filtered.index.max().date()
-  latest_price = data_filtered.loc[data_filtered.index.map(lambda x: x.date() == latest_date), 'Adj Close'].iloc[-1]
-  
-  # Filter data before latest date
-  data_before_latest = data[data.index.map(lambda x: x.date() < latest_date)]
-  
-  if not data_before_latest.empty:
-      # Compare prices using numeric comparison
-      data_before_latest = data_before_latest[data_before_latest['Adj Close'].ge(latest_price)]
-      if not data_before_latest.empty:
-          last_matched_date = data_before_latest.index[-1].date()
-          price_at_last_matched_date = data_before_latest['Adj Close'].iloc[-1]
-          return latest_price, last_matched_date, price_at_last_matched_date
-  
-  return latest_price, None, None
 
-# Rest of the code remains the same...
-
-# ... (previous imports and functions remain the same)
-
-# Add progress bar
+# Update the main loop as well
 progress_bar = st.progress(0)
 ticker_data = []
 
 for i, ticker in enumerate(tickers):
-  try:
-      latest_price, last_date, price_at_last_date = get_latest_price(ticker)
-      if latest_price is not None:
-          latest_price = round(latest_price, 2)
-          if price_at_last_date is not None:
-              price_at_last_date = round(price_at_last_date, 2)
-          
-          data_dict = {
-              'Ticker': ticker,
-              'Último Precio': latest_price,
-              'Última Fecha': last_date if last_date else 'No se encontró coincidencia',
-              'Precio en Última Fecha': price_at_last_date if price_at_last_date else 'N/A',
-              'Días Desde': (datetime.now().date() - last_date).days if last_date else None
-          }
-          ticker_data.append(data_dict)
-  except Exception as e:
-      st.error(f"Error al procesar datos para {ticker}: {e}")
+  latest_price, last_date, price_at_last_date = get_latest_price(ticker)
+  
+  if latest_price is not None:
+      data_dict = {
+          'Ticker': ticker,
+          'Último Precio': round(latest_price, 2),
+          'Última Fecha': last_date if last_date else 'No se encontró coincidencia',
+          'Precio en Última Fecha': round(price_at_last_date, 2) if price_at_last_date else 'N/A',
+          'Días Desde': (datetime.now().date() - last_date).days if last_date else None
+      }
+      ticker_data.append(data_dict)
   
   # Update progress bar
   progress_bar.progress((i + 1) / len(tickers))
@@ -126,18 +121,19 @@ for i, ticker in enumerate(tickers):
 # Create DataFrame and display
 df = pd.DataFrame(ticker_data)
 
-# Check if DataFrame is empty
 if df.empty:
   st.warning("No se encontraron datos para ningún ticker.")
 else:
-  # Check if 'Días Desde' column exists and has valid data
+  # Sort the DataFrame if possible
   if 'Días Desde' in df.columns and df['Días Desde'].notna().any():
       df_sorted = df.sort_values(by='Días Desde', ascending=False)
   else:
-      df_sorted = df  # Use unsorted DataFrame if no valid sorting column
+      df_sorted = df
 
   st.subheader("Datos de Acciones con Último Precio Coincidente o Superior Antes de la Fecha Más Reciente")
   st.dataframe(df_sorted)
+
+  # Rest of the visualization code...
 
   # Add watermark with CSS styling
   st.markdown(
