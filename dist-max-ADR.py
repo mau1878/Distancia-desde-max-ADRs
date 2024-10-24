@@ -24,40 +24,42 @@ def fetch_data(ticker, end_date):
       return pd.DataFrame()
 
 def get_latest_price(ticker: str) -> tuple:
-  """
-  Get the latest price and find the most recent date when the price was equal or higher
-  """
+  """Gets the latest price and finds the most recent date when the price was equal or higher."""
   try:
       today = datetime.now().date()
-      
-      # Get data up to today
       end_date = today.strftime('%Y-%m-%d')
       data = fetch_data(ticker, end_date)
-      
+
       if data.empty:
           return None, None, None
-      
-      # Convert index to datetime if not already
+
       data.index = pd.to_datetime(data.index)
-      
-      # Get the most recent price
-      most_recent_date = data.index.max()
-      current_price = float(data.loc[most_recent_date, 'Adj Close'])
-      
-      # Get all data before the most recent date
-      historical_data = data[data.index < most_recent_date]
-      
+
+      # Check if today's date is in the index *before* accessing it
+      if today not in data.index:
+          return None, None, None  # Return immediately if today's data isn't there
+
+      today_price = data.loc[today, 'Adj Close']
+
+      # Handle potential Series vs. single value
+      if isinstance(today_price, pd.Series) and not today_price.empty:
+          today_price = float(today_price.iloc[-1])
+      elif isinstance(today_price, (int, float)):  # or numpy.number
+          today_price = float(today_price)
+      else:
+          return None, None, None  # Handle cases where today_price is neither
+
+      historical_data = data[data.index.date < today]
+
       if not historical_data.empty:
-          # Find dates where price was >= current price
-          price_matches = historical_data[historical_data['Adj Close'] >= current_price]
-          
+          price_matches = historical_data[historical_data['Adj Close'] >= today_price]
           if not price_matches.empty:
               last_match_date = price_matches.index[-1].date()
               price_at_last_match = float(price_matches['Adj Close'].iloc[-1])
-              return current_price, last_match_date, price_at_last_match
-      
-      return current_price, None, None
-      
+              return today_price, last_match_date, price_at_last_match
+
+      return today_price, None, None
+
   except Exception as e:
       st.error(f"Error processing {ticker}: {str(e)}")
       return None, None, None
