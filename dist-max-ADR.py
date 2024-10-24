@@ -57,9 +57,9 @@ def get_latest_price(ticker: str) -> tuple:
   """
   try:
       today = datetime.now().date()
-      tomorrow = today + timedelta(days=1)
       
-      end_date = tomorrow.strftime('%Y-%m-%d')
+      # Get data up to today
+      end_date = today.strftime('%Y-%m-%d')
       data = fetch_data(ticker, end_date)
       
       if data.empty:
@@ -68,46 +68,38 @@ def get_latest_price(ticker: str) -> tuple:
       # Convert index to datetime if not already
       data.index = pd.to_datetime(data.index)
       
-      # Get today's price (most recent available)
-      most_recent_date = data.index.max()
-      current_price = float(data.loc[most_recent_date, 'Adj Close'])
+      # Get today's price
+      today_price = float(data.loc[data.index.date == today, 'Adj Close'].iloc[-1])
       
-      # Debug print
-      st.write(f"\nProcessing {ticker}:")
-      st.write(f"Current price ({most_recent_date.date()}): {current_price}")
-      
-      # Get all data except the most recent day
-      historical_data = data[data.index < most_recent_date]
+      # Get all data before today
+      historical_data = data[data.index.date < today]
       
       if not historical_data.empty:
-          # Find the most recent date where price was >= current price
-          price_matches = historical_data[historical_data['Adj Close'] >= current_price]
+          # Find dates where price was >= today's price
+          price_matches = historical_data[historical_data['Adj Close'] >= today_price]
           
           if not price_matches.empty:
               last_match_date = price_matches.index[-1].date()
               price_at_last_match = float(price_matches['Adj Close'].iloc[-1])
               
               # Debug print
-              st.write(f"Found match: {last_match_date} with price {price_at_last_match}")
+              print(f"{ticker}:")
+              print(f"Today's price ({today}): {today_price}")
+              print(f"Found match: {last_match_date} with price {price_at_last_match}")
+              print(f"Days since: {(today - last_match_date).days}\n")
               
-              return current_price, last_match_date, price_at_last_match
-          else:
-              st.write("No historical prices >= current price found")
-      else:
-          st.write("No historical data available")
+              return today_price, last_match_date, price_at_last_match
       
-      return current_price, None, None
+      return today_price, None, None
       
   except Exception as e:
-      st.error(f"Error processing {ticker}: {str(e)}")
+      print(f"Error processing {ticker}: {str(e)}")
       return None, None, None
 
 # Main loop
-st.write("Starting data processing...")
-progress_bar = st.progress(0)
 ticker_data = []
 
-for i, ticker in enumerate(tickers):
+for ticker in tickers:
   latest_price, last_date, price_at_last_date = get_latest_price(ticker)
   
   if latest_price is not None:
@@ -119,23 +111,10 @@ for i, ticker in enumerate(tickers):
           'Días Desde': (datetime.now().date() - last_date).days if last_date else None
       }
       ticker_data.append(data_dict)
-      
-      # Debug print
-      st.write(f"Added to DataFrame: {data_dict}")
-  
-  # Update progress bar
-  progress_bar.progress((i + 1) / len(tickers))
 
-st.write("\nCreating final DataFrame...")
+# Create DataFrame and display
 df = pd.DataFrame(ticker_data)
-st.write("Final DataFrame created.")
-
-# Display the raw data before sorting
-st.write("\nRaw data before sorting:")
-st.write(df)
-
-if 'Días Desde' in df.columns:
-  df_sorted = df.sort_values(by='Días Desde', ascending=False)
+df_sorted = df.sort_values(by='Días Desde', ascending=False)
   st.write("\nSorted data:")
   st.write(df_sorted)
 else:
