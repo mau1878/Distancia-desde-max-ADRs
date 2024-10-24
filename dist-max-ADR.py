@@ -71,24 +71,29 @@ def get_latest_price(ticker: str) -> tuple:
       return None, None, None
   
   data.sort_index(inplace=True)
-  data_filtered = data[data.index.date <= tomorrow]
+  # Convert to datetime.date for comparison
+  data_filtered = data[data.index.map(lambda x: x.date() <= tomorrow)]
   
   if data_filtered.empty:
       return None, None, None
   
   latest_date = data_filtered.index.max().date()
-  latest_price = data_filtered['Adj Close'].loc[data_filtered.index.date == latest_date].iloc[-1]
+  latest_price = data_filtered.loc[data_filtered.index.map(lambda x: x.date() == latest_date), 'Adj Close'].iloc[-1]
   
-  data_before_latest = data[data.index.date < latest_date]
+  # Filter data before latest date
+  data_before_latest = data[data.index.map(lambda x: x.date() < latest_date)]
   
   if not data_before_latest.empty:
-      data_before_latest = data_before_latest[data_before_latest['Adj Close'] >= latest_price]
+      # Compare prices using numeric comparison
+      data_before_latest = data_before_latest[data_before_latest['Adj Close'].ge(latest_price)]
       if not data_before_latest.empty:
           last_matched_date = data_before_latest.index[-1].date()
           price_at_last_matched_date = data_before_latest['Adj Close'].iloc[-1]
           return latest_price, last_matched_date, price_at_last_matched_date
   
   return latest_price, None, None
+
+# Rest of the code remains the same...
 
 # ... (previous imports and functions remain the same)
 
