@@ -90,6 +90,8 @@ def get_latest_price(ticker: str) -> tuple:
   
   return latest_price, None, None
 
+# ... (previous imports and functions remain the same)
+
 # Add progress bar
 progress_bar = st.progress(0)
 ticker_data = []
@@ -118,58 +120,69 @@ for i, ticker in enumerate(tickers):
 
 # Create DataFrame and display
 df = pd.DataFrame(ticker_data)
-df_sorted = df.sort_values(by='Días Desde', ascending=False)
 
-st.subheader("Datos de Acciones con Último Precio Coincidente o Superior Antes de la Fecha Más Reciente")
-st.dataframe(df_sorted)
-
-# Add watermark with CSS styling
-st.markdown(
-  """
-  <div style='text-align: center; color: rgba(0,0,0,0.5); padding: 10px;'>
-      <strong>MTaurus - X: MTaurus_ok</strong>
-  </div>
-  """, 
-  unsafe_allow_html=True
-)
-
-# Create visualization
-if 'Días Desde' in df_sorted.columns:
-  df_valid = df_sorted.dropna(subset=['Días Desde'])
-  if not df_valid.empty:
-      st.subheader("Tiempo Transcurrido Desde la Última Coincidencia de Precio o Superior (en días)")
-      
-      fig = px.bar(
-          df_valid,
-          x='Días Desde',
-          y='Ticker',
-          orientation='h',
-          color='Días Desde',
-          color_continuous_scale='Viridis',
-          labels={'Días Desde': 'Días Desde Última Coincidencia de Precio'},
-          title="Días Desde la Última Coincidencia de Precio o Superior"
-      )
-      
-      fig.update_layout(
-          yaxis_title='Ticker',
-          xaxis_title='Días Desde',
-          yaxis_categoryorder='total ascending',
-          margin=dict(t=50, l=0, r=0, b=50)
-      )
-      
-      fig.update_traces(marker=dict(line=dict(width=1, color='rgba(0,0,0,0.2)')))
-      
-      fig.add_annotation(
-          text="MTaurus - X: MTaurus_ok",
-          xref="paper",
-          yref="paper",
-          x=0.5,
-          y=-0.15,
-          showarrow=False,
-          font=dict(size=10, color="rgba(0,0,0,0.5)"),
-          align="center"
-      )
-      
-      st.plotly_chart(fig, use_container_width=True)
+# Check if DataFrame is empty
+if df.empty:
+  st.warning("No se encontraron datos para ningún ticker.")
+else:
+  # Check if 'Días Desde' column exists and has valid data
+  if 'Días Desde' in df.columns and df['Días Desde'].notna().any():
+      df_sorted = df.sort_values(by='Días Desde', ascending=False)
   else:
-      st.warning("No hay datos válidos disponibles para graficar.")
+      df_sorted = df  # Use unsorted DataFrame if no valid sorting column
+
+  st.subheader("Datos de Acciones con Último Precio Coincidente o Superior Antes de la Fecha Más Reciente")
+  st.dataframe(df_sorted)
+
+  # Add watermark with CSS styling
+  st.markdown(
+      """
+      <div style='text-align: center; color: rgba(0,0,0,0.5); padding: 10px;'>
+          <strong>MTaurus - X: MTaurus_ok</strong>
+      </div>
+      """, 
+      unsafe_allow_html=True
+  )
+
+  # Create visualization only if we have valid data
+  if 'Días Desde' in df_sorted.columns:
+      df_valid = df_sorted.dropna(subset=['Días Desde'])
+      if not df_valid.empty:
+          st.subheader("Tiempo Transcurrido Desde la Última Coincidencia de Precio o Superior (en días)")
+          
+          fig = px.bar(
+              df_valid,
+              x='Días Desde',
+              y='Ticker',
+              orientation='h',
+              color='Días Desde',
+              color_continuous_scale='Viridis',
+              labels={'Días Desde': 'Días Desde Última Coincidencia de Precio'},
+              title="Días Desde la Última Coincidencia de Precio o Superior"
+          )
+          
+          fig.update_layout(
+              yaxis_title='Ticker',
+              xaxis_title='Días Desde',
+              yaxis_categoryorder='total ascending',
+              margin=dict(t=50, l=0, r=0, b=50)
+          )
+          
+          fig.update_traces(marker=dict(line=dict(width=1, color='rgba(0,0,0,0.2)')))
+          
+          fig.add_annotation(
+              text="MTaurus - X: MTaurus_ok",
+              xref="paper",
+              yref="paper",
+              x=0.5,
+              y=-0.15,
+              showarrow=False,
+              font=dict(size=10, color="rgba(0,0,0,0.5)"),
+              align="center"
+          )
+          
+          st.plotly_chart(fig, use_container_width=True)
+      else:
+          st.warning("No hay datos válidos disponibles para graficar.")
+  else:
+      st.warning("No se encontró la columna 'Días Desde' en los datos.")
