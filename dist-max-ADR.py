@@ -40,22 +40,23 @@ def get_latest_price(ticker: str) -> tuple:
       # Convert index to datetime if not already
       data.index = pd.to_datetime(data.index)
       
-      # Get today's price
-      today_price = float(data.loc[data.index.date == today, 'Adj Close'].iloc[-1])
+      # Get the most recent price
+      most_recent_date = data.index.max()
+      current_price = float(data.loc[most_recent_date, 'Adj Close'])
       
-      # Get all data before today
-      historical_data = data[data.index.date < today]
+      # Get all data before the most recent date
+      historical_data = data[data.index < most_recent_date]
       
       if not historical_data.empty:
-          # Find dates where price was >= today's price
-          price_matches = historical_data[historical_data['Adj Close'] >= today_price]
+          # Find dates where price was >= current price
+          price_matches = historical_data[historical_data['Adj Close'] >= current_price]
           
           if not price_matches.empty:
               last_match_date = price_matches.index[-1].date()
               price_at_last_match = float(price_matches['Adj Close'].iloc[-1])
-              return today_price, last_match_date, price_at_last_match
+              return current_price, last_match_date, price_at_last_match
       
-      return today_price, None, None
+      return current_price, None, None
       
   except Exception as e:
       st.error(f"Error processing {ticker}: {str(e)}")
