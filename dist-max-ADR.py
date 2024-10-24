@@ -54,12 +54,6 @@ def fetch_data(ticker: str, end_date: str) -> pd.DataFrame:
 def get_latest_price(ticker: str) -> tuple:
   """
   Get the latest price and find the most recent date when the price was equal or higher
-  
-  Parameters:
-      ticker (str): Stock ticker symbol
-      
-  Returns:
-      tuple: (latest_price, last_matched_date, price_at_last_matched_date)
   """
   try:
       today = datetime.now().date()
@@ -74,17 +68,23 @@ def get_latest_price(ticker: str) -> tuple:
       # Convert index to datetime if not already
       data.index = pd.to_datetime(data.index)
       
-      # Get today's data (or most recent if today is not available)
-      current_price = data['Adj Close'].iloc[-1]
+      # Get the most recent trading day's price
+      most_recent_date = data.index.max()
+      current_price = data.loc[most_recent_date, 'Adj Close']
       
-      # Look for the most recent date before today where price was >= current price
-      historical_data = data[:-1]  # Exclude the most recent day
-      price_matches = historical_data[historical_data['Adj Close'] >= current_price]
+      # Create mask for all dates before the most recent date
+      historical_mask = data.index < most_recent_date
+      historical_data = data[historical_mask]
       
-      if not price_matches.empty:
-          last_match_date = price_matches.index[-1].date()
-          price_at_last_match = price_matches['Adj Close'].iloc[-1]
-          return float(current_price), last_match_date, float(price_at_last_match)
+      if not historical_data.empty:
+          # Find all dates where price was >= current price
+          matches_mask = historical_data['Adj Close'] >= current_price
+          matches = historical_data[matches_mask]
+          
+          if not matches.empty:
+              last_match_date = matches.index[-1].date()
+              price_at_last_match = matches['Adj Close'].iloc[-1]
+              return float(current_price), last_match_date, float(price_at_last_match)
       
       return float(current_price), None, None
       
@@ -92,7 +92,7 @@ def get_latest_price(ticker: str) -> tuple:
       st.error(f"Error processing {ticker}: {str(e)}")
       return None, None, None
 
-# Update the main loop to handle the results properly
+# Main loop
 progress_bar = st.progress(0)
 ticker_data = []
 
@@ -114,6 +114,15 @@ for i, ticker in enumerate(tickers):
 
 # Create DataFrame and display
 df = pd.DataFrame(ticker_data)
+
+# Debug information
+st.write("Debug Info:")
+for ticker in tickers:
+  data = fetch_data(ticker, datetime.now().strftime('%Y-%m-%d'))
+  if not data.empty:
+      st.write(f"{ticker} - Latest date available: {data.index.max().date()}")
+      st.write(f"Last 5 prices: {data['Adj Close'][-5:]}")
+
 
 if df.empty:
   st.warning("No se encontraron datos para ningún ticker.")
