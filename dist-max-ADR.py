@@ -4,41 +4,13 @@ import pandas as pd
 from datetime import datetime, timedelta
 import plotly.express as px
 
-# Add error handling for imports
-try:
-  import streamlit as st
-  import yfinance as yf
-  import pandas as pd
-  import plotly.express as px
-except ImportError as e:
-  st.error(f"Missing required package: {e}")
-  st.stop()
-
-# Configure page
-st.set_page_config(
-  page_title="Stock Price Analysis",
-  page_icon="📈",
-  layout="wide"
-)
-
 # Lista de tickers
 tickers = ['BBAR', 'BMA', 'CEPU', 'CRESY', 'EDN', 'GGAL', 'IRS', 'LOMA', 'PAM', 'SUPV', 'TEO', 'TGS', 'YPF']
 
 st.title("Datos de Acciones con Precios Más Recientes")
 
-# Improved cache decorator with TTL
-@st.cache_data(ttl=3600)  # Cache data for 1 hour
-def fetch_data(ticker: str, end_date: str) -> pd.DataFrame:
-  """
-  Fetch stock data for a given ticker
-  
-  Parameters:
-      ticker (str): Stock ticker symbol
-      end_date (str): End date for data fetch
-      
-  Returns:
-      pd.DataFrame: Stock data
-  """
+@st.cache_data
+def fetch_data(ticker, end_date):
   try:
       stock_data = yf.download(ticker, start="1900-01-01", end=end_date)
       
@@ -81,25 +53,19 @@ def get_latest_price(ticker: str) -> tuple:
           if not price_matches.empty:
               last_match_date = price_matches.index[-1].date()
               price_at_last_match = float(price_matches['Adj Close'].iloc[-1])
-              
-              # Debug print
-              print(f"{ticker}:")
-              print(f"Today's price ({today}): {today_price}")
-              print(f"Found match: {last_match_date} with price {price_at_last_match}")
-              print(f"Days since: {(today - last_match_date).days}\n")
-              
               return today_price, last_match_date, price_at_last_match
       
       return today_price, None, None
       
   except Exception as e:
-      print(f"Error processing {ticker}: {str(e)}")
+      st.error(f"Error processing {ticker}: {str(e)}")
       return None, None, None
 
-# Main loop
+# Add progress bar
+progress_bar = st.progress(0)
 ticker_data = []
 
-for ticker in tickers:
+for i, ticker in enumerate(tickers):
   latest_price, last_date, price_at_last_date = get_latest_price(ticker)
   
   if latest_price is not None:
@@ -111,23 +77,12 @@ for ticker in tickers:
           'Días Desde': (datetime.now().date() - last_date).days if last_date else None
       }
       ticker_data.append(data_dict)
+  
+  # Update progress bar
+  progress_bar.progress((i + 1) / len(tickers))
 
 # Create DataFrame and display
 df = pd.DataFrame(ticker_data)
-df_sorted = df.sort_values(by='Días Desde', ascending=False)
-  st.write("\nSorted data:")
-  st.write(df_sorted)
-else:
-  st.write("\nNo 'Días Desde' column found in DataFrame")
-
-# Debug information
-st.write("Debug Info:")
-for ticker in tickers:
-  data = fetch_data(ticker, datetime.now().strftime('%Y-%m-%d'))
-  if not data.empty:
-      st.write(f"{ticker} - Latest date available: {data.index.max().date()}")
-      st.write(f"Last 5 prices: {data['Adj Close'][-5:]}")
-
 
 if df.empty:
   st.warning("No se encontraron datos para ningún ticker.")
@@ -140,8 +95,6 @@ else:
 
   st.subheader("Datos de Acciones con Último Precio Coincidente o Superior Antes de la Fecha Más Reciente")
   st.dataframe(df_sorted)
-
-  # Rest of the visualization code...
 
   # Add watermark with CSS styling
   st.markdown(
@@ -193,5 +146,3 @@ else:
           st.plotly_chart(fig, use_container_width=True)
       else:
           st.warning("No hay datos válidos disponibles para graficar.")
-  else:
-      st.warning("No se encontró la columna 'Días Desde' en los datos.")
