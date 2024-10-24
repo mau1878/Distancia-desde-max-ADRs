@@ -68,25 +68,24 @@ def get_latest_price(ticker: str) -> tuple:
       # Convert index to datetime if not already
       data.index = pd.to_datetime(data.index)
       
-      # Get the most recent trading day's price
+      # Get today's price (most recent available)
       most_recent_date = data.index.max()
-      current_price = data.loc[most_recent_date, 'Adj Close']
+      current_price = float(data.loc[most_recent_date, 'Adj Close'])
       
-      # Create mask for all dates before the most recent date
-      historical_mask = data.index < most_recent_date
-      historical_data = data[historical_mask]
+      # Get all data except the most recent day
+      historical_data = data[data.index < most_recent_date]
       
       if not historical_data.empty:
-          # Find all dates where price was >= current price
-          matches_mask = historical_data['Adj Close'] >= current_price
-          matches = historical_data[matches_mask]
+          # Find the most recent date where price was >= current price
+          price_matches = historical_data[historical_data['Adj Close'] >= current_price]
           
-          if not matches.empty:
-              last_match_date = matches.index[-1].date()
-              price_at_last_match = matches['Adj Close'].iloc[-1]
-              return float(current_price), last_match_date, float(price_at_last_match)
+          if not price_matches.empty:
+              last_match_date = price_matches.index[-1].date()
+              price_at_last_match = float(price_matches['Adj Close'].iloc[-1])
+              days_since = (most_recent_date.date() - last_match_date).days
+              return current_price, last_match_date, price_at_last_match
       
-      return float(current_price), None, None
+      return current_price, None, None
       
   except Exception as e:
       st.error(f"Error processing {ticker}: {str(e)}")
@@ -111,7 +110,6 @@ for i, ticker in enumerate(tickers):
   
   # Update progress bar
   progress_bar.progress((i + 1) / len(tickers))
-
 # Create DataFrame and display
 df = pd.DataFrame(ticker_data)
 
